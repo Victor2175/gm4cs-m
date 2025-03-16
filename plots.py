@@ -48,3 +48,10 @@ def plot_heat_map(dataset, model, run, year=2010):
     grid = np.flip(simulation[year - 1980, :, :], 0)
     fig, ax = plt.subplots(figsize=(14, 6))
     sns.heatmap(grid, cmap='coolwarm', linewidths=0.5)
+
+
+def plot_grid(grid, flip=True):
+    if flip:
+        grid = np.flip(grid, 0)
+    fig, ax = plt.subplots(figsize=(14, 6))
+    sns.heatmap(grid, cmap='coolwarm', linewidths=0.5)
