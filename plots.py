@@ -14,6 +14,18 @@ def plot_histogram_runs(dataset):
     plt.xticks(rotation=90)
     plt.show()
 
+"""
+def plot_timeseries(dataset, model, pixel):
+    normalized_timeseries, mean_forced_response = normalize_pixel(dataset, model, pixel)
+
+    for t in normalized_timeseries:
+        plt.plot(t, color='blue', linewidth=0.5)
+
+    plt.plot(mean_forced_response, color='red')
+    plt.title(f'Timeseries of model {model} for pixel {pixel}')
+    plt.ylabel('SST anomalies')
+    plt.show()
+"""
 
 def plot_timeseries(dataset, model, pixel):
     normalized_timeseries, mean_forced_response = normalize_pixel(dataset, model, pixel)
