@@ -34,7 +34,7 @@ if __name__ == '__main__':
                 best_loss = mean_loss
                 best_model = f'ridge_{alpha}_{rank}'
 
-            #print(f'Mean loss of model ridge_{alpha}_{rank} : {losses['ALL']}')
+            print(f'Mean loss of model ridge_{alpha}_{rank} : {mean_loss}')
             results[f'ridge_{alpha}_{rank}'] = mean_loss
 
     results['best_model'] = best_model
