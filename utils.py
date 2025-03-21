@@ -1,6 +1,6 @@
-import numpy as np
 import skimage as ski
-import copy
+import numpy as np
+import torch
 
 
 def normalize_pixel(dataset, model, pixel):
@@ -134,16 +134,6 @@ def force_normalize_flatten_model(dataset, model, mask, mean, std):
 
 
 def downscale(dataset):
-    """downscaled_dataset = {}
-
-    for model in dataset.keys():
-        downscaled_dataset[model] = {}
-
-        for run in dataset[model].keys():
-            downscaled_dataset[model][run] = ski.transform.downscale_local_mean(dataset[model][run], (1,2,2))
-
-    return downscaled_dataset"""
-
     for model in dataset.keys():
         for run in dataset[model].keys():
             dataset[model][run] = ski.transform.downscale_local_mean(dataset[model][run], (1,2,2))
@@ -285,3 +275,63 @@ def from_flat_to_grid(flat, mask, downscale):
     else:
         grid = np.array(grid).reshape((72, 144))
     return grid
+
+
+def LOOCV(dataset, mask, machine_model):
+    models = list(dataset.keys())
+    n_models = len(models)
+    ith_model = 1
+
+    test_losses = {}
+
+    flat_dataset, flat_forced_responses, mean_flat_grids, std_flat_grid_timeseries = normalize_flatten_dataset(dataset, mask)
+
+    for eval_model in models:
+        train_models = [model for model in models if model != eval_model]
+        
+        X_train, y_train = [], []
+        train_means, train_stds = [], []
+
+        for train_model in train_models:
+            for run, flat_grid_timeserie in flat_dataset[train_model].items():
+                for flat_grid, flat_forced_response in zip(flat_grid_timeserie, flat_forced_responses[train_model]):
+                    X_train.append(flat_grid)
+                    y_train.append(flat_forced_response)
+
+            train_means.append(mean_flat_grids[train_model])
+            train_stds.append(std_flat_grid_timeseries[train_model])
+
+        X_train, y_train = np.array(X_train), np.array(y_train)
+        X_train, y_train = torch.tensor(X_train), torch.tensor(y_train)
+
+        train_mean_flat_grid = np.array(train_means).mean(axis=0)
+        train_std_flat_grid_timeserie = np.array(train_stds).mean(axis=0)
+
+        norm_flat_grids, norm_flat_forced_responses = force_normalize_flatten_model(dataset, eval_model, mask, train_mean_flat_grid, train_std_flat_grid_timeserie)
+
+        X_test, y_test = [], []
+        for run, flat_grid_timeserie in norm_flat_grids.items():
+            for flat_grid, flat_forced_response in zip(flat_grid_timeserie, norm_flat_forced_responses):
+                X_test.append(flat_grid)
+                y_test.append(flat_forced_response)
+
+        X_test, y_test = np.array(X_test), np.array(y_test)
+        X_test, y_test = torch.tensor(X_test), torch.tensor(y_test)
+
+        machine_model.fit(X_train, y_train)
+        y_hat = machine_model.predict(X_test)
+        criterion = torch.nn.MSELoss()
+        loss = torch.sqrt(criterion(y_hat, y_test)).item()
+
+        print(f"[{ith_model}/{n_models}] The RMSE for model {eval_model} is {round(loss, 2)}")
+        
+        test_losses[eval_model] = loss
+        ith_model += 1
+
+    mean_test_loss = sum(test_losses.values()) / len(test_losses)
+
+    print(f"The mean RMSE is {round(mean_test_loss, 2)}")
+
+    test_losses['ALL'] = mean_test_loss
+
+    return test_losses
