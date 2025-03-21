@@ -1,4 +1,5 @@
 import numpy as np
+import skimage as ski
 import copy
 
 
@@ -132,6 +133,22 @@ def force_normalize_flatten_model(dataset, model, mask, mean, std):
     return norm_flat_grids, mean_flat_forced_responses
 
 
+def downscale(dataset):
+    """downscaled_dataset = {}
+
+    for model in dataset.keys():
+        downscaled_dataset[model] = {}
+
+        for run in dataset[model].keys():
+            downscaled_dataset[model][run] = ski.transform.downscale_local_mean(dataset[model][run], (1,2,2))
+
+    return downscaled_dataset"""
+
+    for model in dataset.keys():
+        for run in dataset[model].keys():
+            dataset[model][run] = ski.transform.downscale_local_mean(dataset[model][run], (1,2,2))
+           
+
 def normalize_flatten_model(dataset, model, mask):
     """
     Normalizes the grids from 1980 to 2014 (end) of the given model from the climate dataset and 
@@ -225,8 +242,12 @@ def prune(dataset, min_runs=2):
         dataset.pop(bad_model)
 
 
-def find_union_nan_mask(data):
-    union_nan_mask = np.zeros((72, 144))
+def find_union_nan_mask(data, downscale):
+    if downscale:
+        union_nan_mask = np.zeros((36, 72))
+    else:
+        union_nan_mask = np.zeros((72, 144))
+
     for model in data.keys():
         for run in data[model].keys():
             grids = data[model][run]
@@ -249,7 +270,7 @@ def from_grid_to_flat(grid, mask):
     return grid[~mask]
 
 
-def from_flat_to_grid(flat, mask):
+def from_flat_to_grid(flat, mask, downscale):
     flat_idx = 0
     grid = []
     for nan_bool in np.nditer(mask):
@@ -259,5 +280,8 @@ def from_flat_to_grid(flat, mask):
             grid.append(flat[flat_idx])
             flat_idx += 1
 
-    grid = np.array(grid).reshape((72, 144))
+    if downscale:
+        grid = np.array(grid).reshape((36, 72))
+    else:
+        grid = np.array(grid).reshape((72, 144))
     return grid
