@@ -277,7 +277,7 @@ def from_flat_to_grid(flat, mask, downscale):
     return grid
 
 
-def LOOCV(dataset, mask, machine_model):
+def LOOCV(dataset, mask, machine_model, verbose=False):
     models = list(dataset.keys())
     n_models = len(models)
     ith_model = 1
@@ -323,15 +323,17 @@ def LOOCV(dataset, mask, machine_model):
         criterion = torch.nn.MSELoss()
         loss = torch.sqrt(criterion(y_hat, y_test)).item()
 
-        print(f"[{ith_model}/{n_models}] The RMSE for model {eval_model} is {round(loss, 2)}")
+        if verbose:
+            print(f"[{ith_model}/{n_models}] The RMSE for model {eval_model} is {round(loss, 2)}")
         
         test_losses[eval_model] = loss
         ith_model += 1
 
     mean_test_loss = sum(test_losses.values()) / len(test_losses)
 
-    print(f"The mean RMSE is {round(mean_test_loss, 2)}")
+    if verbose:
+        print(f"The mean RMSE is {round(mean_test_loss, 2)}")
 
-    test_losses['ALL'] = mean_test_loss
+    test_losses['MEAN'] = mean_test_loss
 
     return test_losses
