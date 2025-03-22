@@ -27,7 +27,7 @@ if __name__ == '__main__':
     for alpha in alphas:
         for rank in ranks:
             machine_model = Ridge(alpha=alpha, rank=rank)
-            losses = LOOCV(cope_data, union_nan_mask, machine_model)
+            losses = LOOCV(cope_data, union_nan_mask, machine_model, verbose=True)
             mean_loss = losses['MEAN']
 
             if mean_loss < best_loss:
