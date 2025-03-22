@@ -11,11 +11,13 @@ if __name__ == '__main__':
         cope_data = pkl.load(f)
 
     # Preprocess cope_data
+    print('Preprocessing...')
     prune(cope_data, min_runs=5)
     downscale(cope_data)
 
     union_nan_mask = find_union_nan_mask(cope_data, downscale=True)
     inpute(cope_data, union_nan_mask)
+    print('Done !\n')
 
     # Specify grid search parameters
     alphas = np.logspace(-2, 2)
@@ -23,6 +25,7 @@ if __name__ == '__main__':
     best_loss = 1e6
     best_model = 'hein'
 
+    print('Training...\n')
     results = {}
     for alpha in alphas:
         for rank in ranks:
@@ -39,6 +42,8 @@ if __name__ == '__main__':
 
     results['best_model'] = best_model
     results['best_loss'] = best_loss
+    print(f'Best model : {best_model}')
+    print(f'Best loss : {best_loss}')
 
     with open('training_regression_results.txt', 'w') as f: 
         f.write(json.dumps(results, sort_keys=True, indent=2))
