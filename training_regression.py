@@ -4,6 +4,7 @@ import torch
 from plots import *
 from utils import *
 from regression import Ridge
+import sys
 import json
 
 if __name__ == '__main__':
@@ -12,12 +13,14 @@ if __name__ == '__main__':
 
     # Preprocess cope_data
     print('Preprocessing...')
+    sys.stdout.flush()
     prune(cope_data, min_runs=5)
     downscale(cope_data)
 
     union_nan_mask = find_union_nan_mask(cope_data, downscale=True)
     inpute(cope_data, union_nan_mask)
     print('Done !\n')
+    sys.stdout.flush()
 
     # Specify grid search parameters
     alphas = np.logspace(-2, 2)
@@ -26,6 +29,7 @@ if __name__ == '__main__':
     best_model = 'hein'
 
     print('Training...\n')
+    sys.stdout.flush()
     results = {}
     for alpha in alphas:
         for rank in ranks:
@@ -38,12 +42,14 @@ if __name__ == '__main__':
                 best_model = f'ridge_{alpha}_{rank}'
 
             print(f'Mean loss of model ridge_{alpha}_{rank} : {mean_loss}')
+            sys.stdout.flush()
             results[f'ridge_{alpha}_{rank}'] = mean_loss
 
     results['best_model'] = best_model
     results['best_loss'] = best_loss
     print(f'Best model : {best_model}')
     print(f'Best loss : {best_loss}')
+    sys.stdout.flush()
 
     with open('training_regression_results.txt', 'w') as f: 
         f.write(json.dumps(results, sort_keys=True, indent=2))
