@@ -158,7 +158,7 @@ def normalize_flatten_model(dataset, model, mask):
     flat_grid_timeserie_per_run = []
     runs = list(dataset[model].keys())
     for run in runs:
-        grid_timeserie = dataset[model][run][131:, :, :]
+        grid_timeserie = dataset[model][run][131:, :60, :]
         flat_grids = []
         for grid in grid_timeserie:
             flat_grids.append(from_grid_to_flat(grid, mask))
@@ -232,17 +232,41 @@ def prune(dataset, min_runs=2):
         dataset.pop(bad_model)
 
 
-def find_union_nan_mask(data, downscale):
-    if downscale:
-        union_nan_mask = np.zeros((36, 72))
-    else:
-        union_nan_mask = np.zeros((72, 144))
+def cut_lat(data, max_lat):
+    data_copy = data.copy()
+
+    for model in data_copy.keys():
+        for run in data_copy[model].keys():
+            cut_grids = data_copy[model][run][:, :max_lat, :]
+                
+            data[model][run] = cut_grids
+
+
+def find_union_nan_mask(data):
+    init = False
+    for model in data.keys():
+        for run in data[model].keys():
+            grids = data[model][run]
+            for i in range(grids.shape[0]):
+                
+                if (not init):
+                    union_nan_mask = np.zeros(grids[i, :, :].shape)
+                    init = True
+                
+                nan_mask = np.isnan(grids[i, :, :])
+                union_nan_mask = np.logical_or(union_nan_mask, nan_mask)
+    
+    return union_nan_mask
+
+
+def find_union_nan_mask2(data):
+    union_nan_mask = np.zeros((60, 144))
 
     for model in data.keys():
         for run in data[model].keys():
             grids = data[model][run]
             for i in range(grids.shape[0]):
-                nan_mask = np.isnan(grids[i, :, :])
+                nan_mask = np.isnan(grids[i, :60, :])
                 union_nan_mask = np.logical_or(union_nan_mask, nan_mask)
     
     return union_nan_mask
@@ -260,7 +284,7 @@ def from_grid_to_flat(grid, mask):
     return grid[~mask]
 
 
-def from_flat_to_grid(flat, mask, downscale):
+def from_flat_to_grid(flat, mask):
     flat_idx = 0
     grid = []
     for nan_bool in np.nditer(mask):
@@ -270,11 +294,22 @@ def from_flat_to_grid(flat, mask, downscale):
             grid.append(flat[flat_idx])
             flat_idx += 1
 
-    if downscale:
-        grid = np.array(grid).reshape((36, 72))
-    else:
-        grid = np.array(grid).reshape((72, 144))
+    grid = np.array(grid).reshape(mask.shape)
     return grid
+
+
+def extract_matrices(cope_data, mask, r=[-10, 10]):
+    X, Y = [], []
+    for model in cope_data.keys():
+        normalized_grids, mean_forced_responses, _, _ = normalize_flatten_model(cope_data, model, mask)
+        for run, grid_timeserie in normalized_grids.items():
+            for grid, mean_forced_response in zip(grid_timeserie, mean_forced_responses):
+                if (r[0] < grid.min() and grid.max() < r[1]):
+                    X.append(grid)
+                    Y.append(mean_forced_response)
+
+    X, Y = np.array(X), np.array(Y)
+    return X, Y
 
 
 def LOOCV(dataset, mask, machine_model, verbose=False):

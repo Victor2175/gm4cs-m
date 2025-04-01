@@ -52,7 +52,7 @@ def plot_heatmap_years(dataset, model, run, years=[2000, 2005, 2010]):
         sns.heatmap(cells, ax=axs[i])
 
 
-def plot_heat_map(dataset, model, run, year=2010):
+def plot_heatmap(dataset, model, run, year=2010):
     if year < 1980 or 2013 < year: 
         raise ValueError('The year provided is not in [1980, 2013]')
         

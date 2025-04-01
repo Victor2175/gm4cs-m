@@ -23,27 +23,27 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Specify grid search parameters
-    alphas = np.logspace(-2, 2)
-    ranks = [10, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900]
+    lambdas = np.logspace(-2, 2)
+    ranks = [10, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, None]
     best_loss = 1e6
     best_model = 'hein'
 
     print('Training...\n')
     sys.stdout.flush()
     results = {}
-    for alpha in alphas:
+    for lambda_ in lambdas:
         for rank in ranks:
-            machine_model = Ridge(alpha=alpha, rank=rank)
+            machine_model = Ridge(lambda_=lambda_, rank=rank)
             losses = LOOCV(cope_data, union_nan_mask, machine_model, verbose=True)
             mean_loss = losses['MEAN']
 
             if mean_loss < best_loss:
                 best_loss = mean_loss
-                best_model = f'ridge_{alpha}_{rank}'
+                best_model = f'ridge_{lambda_}_{rank}'
 
-            print(f'Mean loss of model ridge_{alpha}_{rank} : {mean_loss}')
+            print(f'Mean loss of model ridge_{lambda_}_{rank} : {mean_loss}')
             sys.stdout.flush()
-            results[f'ridge_{alpha}_{rank}'] = mean_loss
+            results[f'ridge_{lambda_}_{rank}'] = mean_loss
 
     results['best_model'] = best_model
     results['best_loss'] = best_loss
