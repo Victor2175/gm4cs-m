@@ -8,8 +8,12 @@ import sys
 import json
 
 if __name__ == '__main__':
+    print('Trying to read the data...')
     with open('/mydata/cope/mirco/data/ssp585_time_series.pkl', 'rb') as f:
         cope_data = pkl.load(f)
+
+    print('Got it !')
+    sys.stdout.flush()
 
     # Preprocess cope_data
     print('Preprocessing...')
@@ -35,7 +39,7 @@ if __name__ == '__main__':
     for lambda_ in lambdas:
         for rank in ranks:
             machine_model = Ridge(lambda_=lambda_, rank=rank)
-            losses = LOOCV(cope_data, union_nan_mask, machine_model, verbose=True)
+            losses = LOOCV(cope_data, union_nan_mask, machine_model)
             mean_loss = losses['MEAN']
 
             if mean_loss < best_loss:
@@ -46,6 +50,7 @@ if __name__ == '__main__':
             sys.stdout.flush()
             results[f'ridge_{lambda_}_{rank}'] = mean_loss
 
+    print('\nFinished training !')
     results['best_model'] = best_model
     results['best_loss'] = best_loss
     print(f'Best model : {best_model}')
