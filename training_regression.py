@@ -15,9 +15,10 @@ if __name__ == '__main__':
     print('Preprocessing...')
     sys.stdout.flush()
     prune(cope_data, min_runs=5)
+    cut_lat(cope_data, max_lat=60)
     downscale(cope_data)
 
-    union_nan_mask = find_union_nan_mask(cope_data, downscale=True)
+    union_nan_mask = find_union_nan_mask(cope_data)
     inpute(cope_data, union_nan_mask)
     print('Done !\n')
     sys.stdout.flush()
@@ -51,5 +52,5 @@ if __name__ == '__main__':
     print(f'Best loss : {best_loss}')
     sys.stdout.flush()
 
-    with open('training_regression_results.txt', 'w') as f: 
+    with open('training_regression_results_03_04.txt', 'w') as f: 
         f.write(json.dumps(results, sort_keys=True, indent=2))
