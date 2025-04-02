@@ -5,6 +5,9 @@ import torch.nn as nn
 class basic_VAE(nn.Module):
     def __init__(self, input_dim=1531, hidden_dim=500, latent_dim=200):
         super(basic_VAE, self).__init__()
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.latent_dim = latent_dim
 
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
@@ -45,13 +48,13 @@ class basic_VAE(nn.Module):
         return x_hat, mean, logvar
     
 
-def vae_loss(x, x_hat, mean, logvar):
-    MSECriterion = nn.MSELoss(reduction='sum')
-    d = x_hat.shape[1]
-    var_dec = 1
+    def vae_loss(self, x, x_hat, mean, logvar):
+        MSECriterion = nn.MSELoss(reduction='sum')
+        d = self.latent_dim
+        var_dec = 1
 
-    reconstruction_term = -MSECriterion(x, x_hat) / (2*var_dec)
-    KLD = 0.5 * torch.sum((logvar**2)*d - d + torch.linalg.norm(mean)**2 - 2*logvar)
-    ELBO = reconstruction_term - KLD
+        reconstruction_term = -MSECriterion(x, x_hat) / (2*var_dec)
+        KLD = 0.5 * torch.sum((logvar**2)*d - d + torch.linalg.norm(mean)**2 - 2*d*logvar)
+        ELBO = reconstruction_term - KLD
 
-    return -ELBO
+        return -ELBO

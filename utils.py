@@ -158,7 +158,7 @@ def normalize_flatten_model(dataset, model, mask):
     flat_grid_timeserie_per_run = []
     runs = list(dataset[model].keys())
     for run in runs:
-        grid_timeserie = dataset[model][run][131:, :60, :]
+        grid_timeserie = dataset[model][run][131:, :, :]
         flat_grids = []
         for grid in grid_timeserie:
             flat_grids.append(from_grid_to_flat(grid, mask))
