@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from utils import normalize_pixel
+from utils import normalize_pixel, from_flat_to_grid
 
 
 def plot_histogram_runs(dataset):
@@ -67,3 +67,36 @@ def plot_grid(grid, flip=True):
         grid = np.flip(grid, 0)
     fig, ax = plt.subplots(figsize=(14, 6))
     sns.heatmap(grid, cmap='coolwarm', linewidths=0.5)
+
+
+def plot_trio_grids(x, x_hat, y, union_nan_mask, flip=True):
+    if len(x.shape) != 2:
+        x = from_flat_to_grid(x, union_nan_mask)
+
+    if len(x_hat.shape) != 2:
+        x_hat = from_flat_to_grid(x_hat, union_nan_mask)
+
+    if len(y.shape) != 2:
+        y = from_flat_to_grid(y, union_nan_mask)
+
+    if flip:
+        x = np.flip(x, 0)
+        x_hat = np.flip(x_hat, 0)
+        y = np.flip(y, 0)
+
+    fig, ax = plt.subplots(1, 3, figsize=(32, 8))
+
+    min_val = min((x.ravel().min(), x_hat.ravel().min(), y.ravel().min()))
+    max_val = max((x.ravel().max(), x_hat.ravel().max(), y.ravel().max()))
+
+    sns.heatmap(x, ax=ax[0], cmap='coolwarm', linewidths=0.5, cbar_kws={'label': 'Standard temp.'}, cbar=False, xticklabels=False, yticklabels=False, vmin=min_val, vmax=max_val)
+    ax[0].set_title("Sample", fontsize=20)
+
+    sns.heatmap(x_hat, ax=ax[1], cmap='coolwarm', linewidths=0.5, cbar_kws={'label': 'Intensity'}, cbar=False, xticklabels=False, yticklabels=False, vmin=min_val, vmax=max_val)
+    ax[1].set_title("Predicted forced response", fontsize=20)
+
+    sns.heatmap(y, ax=ax[2], cmap='coolwarm', linewidths=0.5, cbar_kws={'label': 'Intensity'}, xticklabels=False, yticklabels=False,  vmin=min_val, vmax=max_val)
+    ax[2].set_title("Actual forced response", fontsize=20)
+
+    plt.tight_layout()
+    plt.show()
