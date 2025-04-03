@@ -369,6 +369,4 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
     if verbose:
         print(f"The mean RMSE is {round(mean_test_loss, 2)}")
 
-    test_losses['MEAN'] = mean_test_loss
-
     return test_losses
