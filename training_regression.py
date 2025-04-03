@@ -9,6 +9,8 @@ import json
 
 if __name__ == '__main__':
     print('Trying to read the data...')
+    sys.stdout.flush()
+
     with open('/mydata/cope/mirco/data/ssp585_time_series.pkl', 'rb') as f:
         cope_data = pkl.load(f)
 
@@ -48,7 +50,7 @@ if __name__ == '__main__':
                 rank = np.linalg.matrix_rank(machine_model.W)
 
             mean_loss = sum(losses.values()) / len(losses)
-            quantiles = np.quantile(np.array(losses.values()), [0.25, 0.5, 0.75])
+            quantiles = np.quantile(np.array(list(losses.values())), [0.25, 0.5, 0.75])
             median_loss = quantiles[1]
 
             if mean_loss < best_mean_loss:
