@@ -11,7 +11,7 @@ class Ridge:
         if self.fit_intercept:
             X = torch.cat([torch.ones(X.shape[0], 1), X], dim = 1)
         
-        # Ridge formulation : (X.T @ X + lambda * I)^{-1} @ B = X.T @ Y
+        # Ridge formulation : (X.T @ X + lambda * I) @ B = X.T @ Y
 
         normal_matrix = X.T @ X
         moment_matrix = X.T @ Y
