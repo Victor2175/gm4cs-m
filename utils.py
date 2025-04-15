@@ -133,6 +133,28 @@ def force_normalize_flatten_model(dataset, model, mask, mean, std):
     return norm_flat_grids, mean_flat_forced_responses
 
 
+def center_flatten_model(dataset, model, mask):
+    flat_grid_timeserie_per_run = []
+    runs = list(dataset[model].keys())
+    for run in runs:
+        grid_timeserie = dataset[model][run][131:, :, :]
+        flat_grids = []
+        for grid in grid_timeserie:
+            flat_grids.append(from_grid_to_flat(grid, mask))
+        flat_grid_timeserie_per_run.append(flat_grids)
+        
+    flat_grid_timeserie_per_run = np.array(flat_grid_timeserie_per_run)
+    mean_flat_grid_per_run = np.mean(flat_grid_timeserie_per_run, axis=1)
+    mean_flat_grid_per_run = np.expand_dims(mean_flat_grid_per_run, axis=1)
+
+    norm_flat_grid_timeserie_per_run = flat_grid_timeserie_per_run - mean_flat_grid_per_run
+    mean_flat_forced_responses = np.mean(norm_flat_grid_timeserie_per_run, axis=0)
+
+    norm_flat_grids = {k:v for (k,v) in zip(runs, norm_flat_grid_timeserie_per_run)}
+
+    return norm_flat_grids, mean_flat_forced_responses
+
+
 def downscale(dataset):
     for model in dataset.keys():
         for run in dataset[model].keys():
@@ -169,13 +191,14 @@ def normalize_flatten_model(dataset, model, mask):
     mean_flat_grid = np.mean(mean_flat_grid_timeserie, axis=0)
 
     std_flat_grid_timeserie = np.std(flat_grid_timeserie_per_run, axis=0)
+    std_flat_grid = np.mean(std_flat_grid_timeserie, axis=0)
 
-    norm_flat_grids_per_run = (flat_grid_timeserie_per_run - mean_flat_grid) / std_flat_grid_timeserie
-    mean_flat_forced_responses = np.mean(norm_flat_grids_per_run, axis=0)
+    norm_flat_grids_per_run = (flat_grid_timeserie_per_run - mean_flat_grid) / std_flat_grid
+    mean_flat_forced_response = np.mean(norm_flat_grids_per_run, axis=0)
 
     norm_flat_grids = {k:v for (k,v) in zip(runs, norm_flat_grids_per_run)}
 
-    return norm_flat_grids, mean_flat_forced_responses, mean_flat_grid, std_flat_grid_timeserie
+    return norm_flat_grids, mean_flat_forced_response, mean_flat_grid, std_flat_grid
 
 
 def normalize_flatten_dataset(dataset, mask):
@@ -197,19 +220,19 @@ def normalize_flatten_dataset(dataset, mask):
     flat_dataset = {}
     flat_forced_responses = {}
     mean_flat_grids = {}
-    std_flat_grid_timeseries = {}
+    std_flat_grids = {}
 
     models = list(dataset.keys())
 
     for model in models:
-        norm_flat_grids, mean_flat_forced_responses, mean_flat_grid, std_flat_grid_timeserie = normalize_flatten_model(dataset, model, mask)
+        norm_flat_grids, mean_flat_forced_responses, mean_flat_grid, std_flat_grid = normalize_flatten_model(dataset, model, mask)
         
         flat_dataset[model] = norm_flat_grids
         flat_forced_responses[model] = mean_flat_forced_responses
         mean_flat_grids[model] = mean_flat_grid
-        std_flat_grid_timeseries[model] = std_flat_grid_timeserie
+        std_flat_grids[model] = std_flat_grid
 
-    return flat_dataset, flat_forced_responses, mean_flat_grids, std_flat_grid_timeseries
+    return flat_dataset, flat_forced_responses, mean_flat_grids, std_flat_grids
 
 
 def prune(dataset, min_runs=2):
@@ -298,7 +321,7 @@ def from_flat_to_grid(flat, mask):
     return grid
 
 
-def extract_matrices(cope_data, mask, r=[-10, 10]):
+def extract_per_grid(cope_data, mask, r=[-10, 10]):
     X, Y = [], []
     for model in cope_data.keys():
         normalized_grids, mean_forced_responses, _, _ = normalize_flatten_model(cope_data, model, mask)
@@ -312,6 +335,22 @@ def extract_matrices(cope_data, mask, r=[-10, 10]):
     return X, Y
 
 
+def extract_per_timeserie(cope_data, mask, r=[-10, 10]):
+    X, Y = [], []
+    for model in cope_data.keys():
+        normalized_grids, mean_forced_response, _, _ = normalize_flatten_model(cope_data, model, mask)
+        flattened_mean_forced_response = mean_forced_response.flatten()
+        for run, grid_timeserie in normalized_grids.items():
+            flattened_grid_timeserie = grid_timeserie.flatten()
+            
+            if (r[0] < flattened_grid_timeserie.min() and flattened_grid_timeserie.max() < r[1]):
+                X.append(flattened_grid_timeserie)
+                Y.append(flattened_mean_forced_response)
+
+    X, Y = np.array(X), np.array(Y)
+    return X, Y
+
+
 def LOOCV(dataset, mask, machine_model, verbose=False):
     models = list(dataset.keys())
     n_models = len(models)
@@ -319,13 +358,12 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
 
     test_losses = {}
 
-    flat_dataset, flat_forced_responses, mean_flat_grids, std_flat_grid_timeseries = normalize_flatten_dataset(dataset, mask)
+    flat_dataset, flat_forced_responses, mean_flat_grids, std_flat_grids = normalize_flatten_dataset(dataset, mask)
 
     for eval_model in models:
         train_models = [model for model in models if model != eval_model]
         
         X_train, y_train = [], []
-        train_means, train_stds = [], []
 
         for train_model in train_models:
             for run, flat_grid_timeserie in flat_dataset[train_model].items():
@@ -333,16 +371,10 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
                     X_train.append(flat_grid)
                     y_train.append(flat_forced_response)
 
-            train_means.append(mean_flat_grids[train_model])
-            train_stds.append(std_flat_grid_timeseries[train_model])
-
         X_train, y_train = np.array(X_train), np.array(y_train)
         X_train, y_train = torch.tensor(X_train), torch.tensor(y_train)
 
-        train_mean_flat_grid = np.array(train_means).mean(axis=0)
-        train_std_flat_grid_timeserie = np.array(train_stds).mean(axis=0)
-
-        norm_flat_grids, norm_flat_forced_responses = force_normalize_flatten_model(dataset, eval_model, mask, train_mean_flat_grid, train_std_flat_grid_timeserie)
+        norm_flat_grids, norm_flat_forced_responses = center_flatten_model(dataset, eval_model, mask)
 
         X_test, y_test = [], []
         for run, flat_grid_timeserie in norm_flat_grids.items():
@@ -356,10 +388,13 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
         machine_model.fit(X_train, y_train)
         y_hat = machine_model.predict(X_test)
         criterion = torch.nn.MSELoss()
-        loss = torch.sqrt(criterion(y_hat, y_test)).item()
+        test_var = torch.var(y_test)
+
+        #loss = torch.sqrt(criterion(y_hat, y_test)).item()
+        loss = (criterion(y_hat, y_test) / test_var).item()
 
         if verbose:
-            print(f"[{ith_model}/{n_models}] The RMSE for model {eval_model} is {round(loss, 2)}")
+            print(f"[{ith_model}/{n_models}] The NMSE for model {eval_model} is {round(loss, 2)}")
         
         test_losses[eval_model] = loss
         ith_model += 1
