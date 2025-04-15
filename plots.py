@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as ani
 import seaborn as sns
 from utils import normalize_pixel, from_flat_to_grid
 
@@ -100,3 +101,91 @@ def plot_trio_grids(x, x_hat, y, union_nan_mask, flip=True):
 
     plt.tight_layout()
     plt.show()
+
+"""
+def plot_animated_timeserie(flattened_timeserie, union_nan_mask, flip=True):
+    flattened_grid_timeserie = np.reshape(flattened_timeserie, (34, -1))
+    print(flattened_grid_timeserie.shape)
+    fig, ax = plt.subplots()
+
+    artists = []
+    for i in range(flattened_grid_timeserie.shape[0]):
+        
+        flattened_grid = flattened_grid_timeserie[i]
+        grid = from_flat_to_grid(flattened_grid, union_nan_mask)
+        if flip:
+            grid = np.flip(grid, 0)
+        
+        #artist = sns.heatmap(grid, cmap='coolwarm', linewidths=0.5, ax=ax)
+        artist = ax.bar(x=range(i), height=range(i), color='blue', alpha=0.5)
+        artists.append(artist)
+
+    print(len(artists))
+    animation = ani.ArtistAnimation(fig=fig, artists=artists, interval=1000)
+    
+    return animation
+"""
+
+def get_animated_timeserie(flattened_timeserie, union_nan_mask, flip=True):
+    vmax = np.max(flattened_timeserie)
+    vmin = np.min(flattened_timeserie)
+    print(vmax, vmin)
+
+    flattened_grid_timeserie = np.reshape(flattened_timeserie, (34, -1))
+
+    fig = plt.figure()
+
+    def animate(i):
+        flattened_grid = flattened_grid_timeserie[i]
+        grid = from_flat_to_grid(flattened_grid, union_nan_mask)
+        if flip:
+            grid = np.flip(grid, 0)
+
+        plt.clf()
+        res = sns.heatmap(grid, cmap='coolwarm', linewidths=0.5, vmax=vmax, vmin=vmin, xticklabels=False, yticklabels=False, cbar_kws={'label': 'Intensity'})
+        res.axhline(y=0, color='k', linewidth=1, alpha=0.5)
+        res.axhline(y=grid.shape[0], color='k', linewidth=2, alpha=0.5)
+        res.axvline(x=0, color='k', linewidth=1, alpha=0.5)
+        res.axvline(x=grid.shape[1], color='k', linewidth=2, alpha=0.5)
+        plt.title(f"Time step {i}")
+
+    animation = ani.FuncAnimation(fig, animate, frames=flattened_grid_timeserie.shape[0]-1, interval=1000, repeat=True)
+    return animation
+
+
+def get_duo_animated_timeserie(x_flattened_timeserie, y_flattened_timeserie, union_nan_mask, flip=True):
+    vmax = max(np.max(x_flattened_timeserie), np.max(y_flattened_timeserie))
+    vmin = min(np.min(x_flattened_timeserie), np.min(y_flattened_timeserie))
+    print(vmax, vmin)
+
+    x_flattened_grid_timeserie = np.reshape(x_flattened_timeserie, (34, -1))
+    y_flattened_grid_timeserie = np.reshape(y_flattened_timeserie, (34, -1))
+    fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
+
+    def animate(i): 
+        x_flattened_grid = x_flattened_grid_timeserie[i]
+        y_flattened_grid = y_flattened_grid_timeserie[i]
+
+        x_grid = from_flat_to_grid(x_flattened_grid, union_nan_mask)
+        y_grid = from_flat_to_grid(y_flattened_grid, union_nan_mask)
+        if flip:
+            x_grid = np.flip(x_grid, 0)
+            y_grid = np.flip(y_grid, 0)
+
+        
+        sns.heatmap(x_grid, ax=ax1, cmap='coolwarm', linewidths=0.5, cbar=False, vmax=vmax, vmin=vmin, xticklabels=False, yticklabels=False, cbar_kws={'label': 'Intensity'})
+        #left.axhline(y=0, color='k', linewidth=1, alpha=0.5)
+        #left.axhline(y=x_grid.shape[0], color='k', linewidth=2, alpha=0.5)
+        #left.axvline(x=0, color='k', linewidth=1, alpha=0.5)
+        #left.axvline(x=x_grid.shape[1], color='k', linewidth=2, alpha=0.5)
+
+        sns.heatmap(y_grid, ax=ax2, cmap='coolwarm', linewidths=0.5, vmax=vmax, vmin=vmin, xticklabels=False, yticklabels=False, cbar_kws={'label': 'Intensity'})
+        #right.axhline(y=0, color='k', linewidth=1, alpha=0.5)
+        #right.axhline(y=y_grid.shape[0], color='k', linewidth=2, alpha=0.5)
+        #right.axvline(x=0, color='k', linewidth=1, alpha=0.5)
+        #right.axvline(x=y_grid.shape[1], color='k', linewidth=2, alpha=0.5)
+        
+        plt.title(f"Time step {i}")
+
+    animation = ani.FuncAnimation(fig, animate, frames=2, interval=1000, repeat=True)
+    return animation
