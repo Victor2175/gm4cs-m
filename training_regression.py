@@ -73,5 +73,5 @@ if __name__ == '__main__':
     print('\nFinished training !\n')
     sys.stdout.flush()
 
-    with open('training_regression_losses.txt', 'w') as f: 
+    with open('training_regression_losses_21_04.txt', 'w') as f: 
         f.write(json.dumps(all_losses, sort_keys=True, indent=2))
