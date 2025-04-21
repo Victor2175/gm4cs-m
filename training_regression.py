@@ -30,7 +30,7 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Specify grid search parameters
-    lambdas = np.logspace(-1, 4, 20)
+    lambdas = np.logspace(-1, 5, 20)
     ranks = [10, 50, 100, 300, 500, 700, None]
     #best_mean_loss, best_median_loss = 1e6, 1e6
     #best_mean_model, best_median_model = 'hein', 'hein'
