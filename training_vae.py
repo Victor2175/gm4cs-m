@@ -11,9 +11,7 @@ if __name__ == '__main__':
     print('Trying to read the data...')
     sys.stdout.flush()
 
-    #with open('/mydata/cope/mirco/data/ssp585_time_series.pkl', 'rb') as f:
-    #    cope_data = pkl.load(f)
-    with open('cope_data/ssp585_time_series.pkl', 'rb') as f:
+    with open('/mydata/cope/mirco/data/ssp585_time_series.pkl', 'rb') as f:
         cope_data = pkl.load(f)
 
     print('Got it !')
@@ -35,7 +33,7 @@ if __name__ == '__main__':
     lr = 1e-3
     batch_size = 16
     epochs = 30
-    
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'Using device: {device}')
     sys.stdout.flush()
@@ -58,5 +56,5 @@ if __name__ == '__main__':
     print('\nFinished training !\n')
     sys.stdout.flush()
 
-    with open('training_vae_losses.txt', 'w') as f: 
+    with open('training_vae_losses_23_04.txt', 'w') as f: 
         f.write(json.dumps(losses, indent=2))
