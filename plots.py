@@ -153,18 +153,24 @@ def get_animated_timeserie(flattened_timeserie, union_nan_mask, flip=True):
     return animation
 
 
-def get_duo_animated_timeserie(x_flattened_timeserie, y_flattened_timeserie, union_nan_mask, flip=True):
-    vmax = max(np.max(x_flattened_timeserie), np.max(y_flattened_timeserie))
-    vmin = min(np.min(x_flattened_timeserie), np.min(y_flattened_timeserie))
+def get_duo_animated_timeserie(left_flattened_timeserie, right_flattened_timeserie, union_nan_mask, left_title='x_hat (predicted)', right_title='y (ground truth)', flip=True):
+    vmax = max(np.max(left_flattened_timeserie), np.max(right_flattened_timeserie))
+    vmin = min(np.min(left_flattened_timeserie), np.min(right_flattened_timeserie))
     print(vmax, vmin)
 
-    x_flattened_grid_timeserie = np.reshape(x_flattened_timeserie, (34, -1))
-    y_flattened_grid_timeserie = np.reshape(y_flattened_timeserie, (34, -1))
-    fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
+    left_flattened_grid_timeserie = np.reshape(left_flattened_timeserie, (34, -1))
+    right_flattened_grid_timeserie = np.reshape(right_flattened_timeserie, (34, -1))
+    fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(12, 6))
+
+    # Create a colorbar axis
+    cbar_ax = fig.add_axes([0.5, 0.15, 0.02, 0.7])
 
     def animate(i): 
-        x_flattened_grid = x_flattened_grid_timeserie[i]
-        y_flattened_grid = y_flattened_grid_timeserie[i]
+        ax1.clear()  # Clear the left axis
+        ax2.clear()  # Clear the right axis
+
+        x_flattened_grid = left_flattened_grid_timeserie[i]
+        y_flattened_grid = right_flattened_grid_timeserie[i]
 
         x_grid = from_flat_to_grid(x_flattened_grid, union_nan_mask)
         y_grid = from_flat_to_grid(y_flattened_grid, union_nan_mask)
@@ -172,20 +178,22 @@ def get_duo_animated_timeserie(x_flattened_timeserie, y_flattened_timeserie, uni
             x_grid = np.flip(x_grid, 0)
             y_grid = np.flip(y_grid, 0)
 
-        
-        sns.heatmap(x_grid, ax=ax1, cmap='coolwarm', linewidths=0.5, cbar=False, vmax=vmax, vmin=vmin, xticklabels=False, yticklabels=False, cbar_kws={'label': 'Intensity'})
-        #left.axhline(y=0, color='k', linewidth=1, alpha=0.5)
-        #left.axhline(y=x_grid.shape[0], color='k', linewidth=2, alpha=0.5)
-        #left.axvline(x=0, color='k', linewidth=1, alpha=0.5)
-        #left.axvline(x=x_grid.shape[1], color='k', linewidth=2, alpha=0.5)
+        # Plot heatmaps
+        left = sns.heatmap(x_grid, ax=ax1, cmap='coolwarm', linewidths=0.5, cbar=True, vmax=vmax, vmin=vmin, xticklabels=False, yticklabels=False, cbar_ax=cbar_ax)
+        left.axhline(y=0, color='k', linewidth=1, alpha=0.5)
+        left.axhline(y=x_grid.shape[0], color='k', linewidth=2, alpha=0.5)
+        left.axvline(x=0, color='k', linewidth=1, alpha=0.5)
+        left.axvline(x=x_grid.shape[1], color='k', linewidth=2, alpha=0.5)
+        ax1.set_title(left_title, fontsize=15)
 
-        sns.heatmap(y_grid, ax=ax2, cmap='coolwarm', linewidths=0.5, vmax=vmax, vmin=vmin, xticklabels=False, yticklabels=False, cbar_kws={'label': 'Intensity'})
-        #right.axhline(y=0, color='k', linewidth=1, alpha=0.5)
-        #right.axhline(y=y_grid.shape[0], color='k', linewidth=2, alpha=0.5)
-        #right.axvline(x=0, color='k', linewidth=1, alpha=0.5)
-        #right.axvline(x=y_grid.shape[1], color='k', linewidth=2, alpha=0.5)
-        
-        plt.title(f"Time step {i}")
+        right = sns.heatmap(y_grid, ax=ax2, cmap='coolwarm', linewidths=0.5, cbar=True, vmax=vmax, vmin=vmin, xticklabels=False, yticklabels=False, cbar_ax=cbar_ax)
+        right.axhline(y=0, color='k', linewidth=1, alpha=0.5)
+        right.axhline(y=y_grid.shape[0], color='k', linewidth=2, alpha=0.5)
+        right.axvline(x=0, color='k', linewidth=1, alpha=0.5)
+        right.axvline(x=y_grid.shape[1], color='k', linewidth=2, alpha=0.5)
+        ax2.set_title(right_title, fontsize=15)
 
-    animation = ani.FuncAnimation(fig, animate, frames=2, interval=1000, repeat=True)
+        plt.title(f"Time step {i}", x=0.5, y=1.08, fontsize=20)
+
+    animation = ani.FuncAnimation(fig, animate, frames=34, interval=1000, repeat=True)
     return animation
