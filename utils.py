@@ -1,7 +1,9 @@
 import skimage as ski
 import numpy as np
 import torch
-
+from torch.utils.data import DataLoader, random_split
+from dataset import CopeDataset
+from vae import *
 
 def normalize_pixel(dataset, model, pixel):
     """
@@ -405,3 +407,109 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
         print(f"The mean RMSE is {round(mean_test_loss, 2)}")
 
     return test_losses
+
+
+def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=False):
+    models = list(dataset.keys())
+    n_models = len(models)
+    ith_model = 1
+
+    test_losses = {}
+
+    flat_dataset, flat_forced_responses, mean_flat_grids, std_flat_grids = normalize_flatten_dataset(dataset, mask)
+
+    for eval_model in models:
+        train_models = [model for model in models if model != eval_model]
+        
+        X_train, y_train = [], []
+        for train_model in train_models:
+            flattened_forced_response = flat_forced_responses[train_model].flatten()
+            for run, flat_grid_timeserie in flat_dataset[train_model].items():
+                flattened_grid_timeserie = flat_grid_timeserie.flatten()
+            
+                X_train.append(flattened_grid_timeserie)
+                y_train.append(flattened_forced_response)
+
+        X_train, y_train = np.array(X_train), np.array(y_train)
+        X_train, y_train = torch.tensor(X_train).to(torch.float32), torch.tensor(y_train).to(torch.float32)
+
+        norm_flat_grids, norm_flat_forced_responses = center_flatten_model(dataset, eval_model, mask)
+
+        X_test, y_test = [], []
+        flattened_forced_response = norm_flat_forced_responses.flatten()
+        for run, flat_grid_timeserie in norm_flat_grids.items():
+            flattened_grid_timeserie = flat_grid_timeserie.flatten()
+            
+            X_test.append(flattened_grid_timeserie)
+            y_test.append(flattened_forced_response)
+
+        X_test, y_test = np.array(X_test), np.array(y_test)
+        X_test, y_test = torch.tensor(X_test).to(torch.float32), torch.tensor(y_test).to(torch.float32)
+
+        train_dataset = CopeDataset(samples=X_train, labels=y_train)
+        test_dataset = CopeDataset(samples=X_test, labels=y_test)
+        
+        trained_machine_model = train_vae(machine_model, train_dataset, epochs, batch_size, lr)
+        
+        loss = eval_vae(trained_machine_model, test_dataset)
+
+        if verbose:
+            print(f"[{ith_model}/{n_models}] The NMSE for model {eval_model} is {round(loss, 3)} \n")
+        
+        test_losses[eval_model] = loss
+        ith_model += 1
+
+    mean_test_loss = sum(test_losses.values()) / len(test_losses)
+
+    if verbose:
+        print(f"The mean RMSE is {round(mean_test_loss, 3)} \n")
+
+    return test_losses
+
+
+def train_vae(model, train_dataset, epochs, batch_size, lr):
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model.train()
+    for epoch in range(epochs):
+        overall_loss = 0
+        for batch_idx, (x, y) in enumerate(train_dataloader):
+            x = x.to(device)
+
+            optimizer.zero_grad()
+
+            x_hat, mean, var = model(x)
+            loss = model.loss(x_hat, y, mean, var)
+            
+            overall_loss += loss.item()
+        
+            loss.backward()
+            optimizer.step()
+        
+        print("Epoch", epoch + 1, "complete !", "\tAverage training loss: ", overall_loss / (batch_idx*batch_size))
+
+    return model
+
+
+def eval_vae(trained_model, test_dataset):
+    test_var = torch.var(test_dataset.labels, dim=1)
+
+    test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=True)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    criterion = torch.nn.MSELoss(reduction='none')
+
+    trained_model.eval()
+
+    with torch.no_grad():
+        for batch_idx, (x, y) in enumerate(test_dataloader):
+            x = x.to(device)
+
+            x_hat, _, _ = trained_model(x)
+            
+            batch_loss = criterion(x_hat, y).mean(dim=1) / test_var   
+            loss = batch_loss.mean().item()
+
+    return loss
