@@ -48,12 +48,12 @@ class basic_VAE(nn.Module):
         return x_hat, mean, logvar
     
 
-    def loss(self, x, x_hat, mean, logvar):
+    def loss(self, x_hat, y, mean, logvar):
         MSECriterion = nn.MSELoss(reduction='sum')
         d = self.latent_dim
         var_dec = 1
 
-        reconstruction_term = -MSECriterion(x, x_hat) / (2*var_dec)
+        reconstruction_term = -MSECriterion(x_hat, y) / (2*var_dec)
         KLD = 0.5 * torch.sum((logvar**2)*d - d + torch.linalg.norm(mean)**2 - 2*d*logvar)
         ELBO = reconstruction_term - KLD
 
@@ -89,6 +89,7 @@ class VAE(nn.Module):
 
     def encode(self, x):
         x = self.encoder(x)
+        
         mean, logvar = self.mean_layer(x), self.logvar_layer(x)
         return mean, logvar
 
@@ -120,3 +121,14 @@ class VAE(nn.Module):
         ELBO = reconstruction_term - KLD
 
         return -ELBO
+
+
+    def sample(self, x, n_samples):
+        samples = []
+        mean, logvar = self.encode(x)
+        for i in range(n_samples):
+            z = self.reparameterization(mean, logvar)
+            sample = self.decode(z)
+            samples.append(sample)
+
+        return samples
