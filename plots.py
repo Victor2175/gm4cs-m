@@ -91,7 +91,7 @@ def plot_trio_grids(x, x_hat, y, union_nan_mask, flip=True):
     max_val = max((x.ravel().max(), x_hat.ravel().max(), y.ravel().max()))
 
     sns.heatmap(x, ax=ax[0], cmap='coolwarm', linewidths=0.5, cbar_kws={'label': 'Standard temp.'}, cbar=False, xticklabels=False, yticklabels=False, vmin=min_val, vmax=max_val)
-    ax[0].set_title("Sample", fontsize=20)
+    ax[0].set_title("Datapoint", fontsize=20)
 
     sns.heatmap(x_hat, ax=ax[1], cmap='coolwarm', linewidths=0.5, cbar_kws={'label': 'Intensity'}, cbar=False, xticklabels=False, yticklabels=False, vmin=min_val, vmax=max_val)
     ax[1].set_title("Predicted forced response", fontsize=20)
@@ -102,29 +102,6 @@ def plot_trio_grids(x, x_hat, y, union_nan_mask, flip=True):
     plt.tight_layout()
     plt.show()
 
-"""
-def plot_animated_timeserie(flattened_timeserie, union_nan_mask, flip=True):
-    flattened_grid_timeserie = np.reshape(flattened_timeserie, (34, -1))
-    print(flattened_grid_timeserie.shape)
-    fig, ax = plt.subplots()
-
-    artists = []
-    for i in range(flattened_grid_timeserie.shape[0]):
-        
-        flattened_grid = flattened_grid_timeserie[i]
-        grid = from_flat_to_grid(flattened_grid, union_nan_mask)
-        if flip:
-            grid = np.flip(grid, 0)
-        
-        #artist = sns.heatmap(grid, cmap='coolwarm', linewidths=0.5, ax=ax)
-        artist = ax.bar(x=range(i), height=range(i), color='blue', alpha=0.5)
-        artists.append(artist)
-
-    print(len(artists))
-    animation = ani.ArtistAnimation(fig=fig, artists=artists, interval=1000)
-    
-    return animation
-"""
 
 def get_animated_timeserie(flattened_timeserie, union_nan_mask, flip=True):
     vmax = np.max(flattened_timeserie)
@@ -156,14 +133,13 @@ def get_animated_timeserie(flattened_timeserie, union_nan_mask, flip=True):
 def get_duo_animated_timeserie(left_flattened_timeserie, right_flattened_timeserie, union_nan_mask, left_title='x_hat (predicted)', right_title='y (ground truth)', flip=True):
     vmax = max(np.max(left_flattened_timeserie), np.max(right_flattened_timeserie))
     vmin = min(np.min(left_flattened_timeserie), np.min(right_flattened_timeserie))
-    print(vmax, vmin)
 
     left_flattened_grid_timeserie = np.reshape(left_flattened_timeserie, (34, -1))
     right_flattened_grid_timeserie = np.reshape(right_flattened_timeserie, (34, -1))
-    fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(12, 6))
+    fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(18, 6))
 
     # Create a colorbar axis
-    cbar_ax = fig.add_axes([0.5, 0.15, 0.02, 0.7])
+    cbar_ax = fig.add_axes([0.49, 0.15, 0.02, 0.7])
 
     def animate(i): 
         ax1.clear()  # Clear the left axis
@@ -179,14 +155,14 @@ def get_duo_animated_timeserie(left_flattened_timeserie, right_flattened_timeser
             y_grid = np.flip(y_grid, 0)
 
         # Plot heatmaps
-        left = sns.heatmap(x_grid, ax=ax1, cmap='coolwarm', linewidths=0.5, cbar=True, vmax=vmax, vmin=vmin, xticklabels=False, yticklabels=False, cbar_ax=cbar_ax)
+        left = sns.heatmap(x_grid, ax=ax1, cmap='coolwarm', linewidths=0.5, cbar=True, square=False, vmax=vmax, vmin=vmin, xticklabels=False, yticklabels=False, cbar_ax=cbar_ax)
         left.axhline(y=0, color='k', linewidth=1, alpha=0.5)
         left.axhline(y=x_grid.shape[0], color='k', linewidth=2, alpha=0.5)
         left.axvline(x=0, color='k', linewidth=1, alpha=0.5)
         left.axvline(x=x_grid.shape[1], color='k', linewidth=2, alpha=0.5)
         ax1.set_title(left_title, fontsize=15)
 
-        right = sns.heatmap(y_grid, ax=ax2, cmap='coolwarm', linewidths=0.5, cbar=True, vmax=vmax, vmin=vmin, xticklabels=False, yticklabels=False, cbar_ax=cbar_ax)
+        right = sns.heatmap(y_grid, ax=ax2, cmap='coolwarm', linewidths=0.5, cbar=True, square=False, vmax=vmax, vmin=vmin, xticklabels=False, yticklabels=False, cbar_ax=cbar_ax)
         right.axhline(y=0, color='k', linewidth=1, alpha=0.5)
         right.axhline(y=y_grid.shape[0], color='k', linewidth=2, alpha=0.5)
         right.axvline(x=0, color='k', linewidth=1, alpha=0.5)
