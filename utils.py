@@ -12,27 +12,28 @@ def normalize_pixel(dataset, model, pixel):
     Keyword arguments:
     dataset (dict): The climate dataset
     model (string): The model 
-    pixel (tuple of ints): The latitude and longitude
+    pixel (tuple of ints): The latitude and longitude, respectively
 
     Output:
-    normalized timeseries (np.array): The normalized timeseries. Shape of (run, timestep)
-    mean forced response (np.array): The mean forced response of the normalized timeseries. Shape of (timestep,)
+    runs_timeseries_normalized (np.array): The normalized timeseries. Shape of (run, timestep)
+    mean_forced_responses (np.array): The mean forced response of the normalized timeseries. Shape of (timestep,)
     """
-    timeserie_per_run = []
+    runs_timeserie = []
     for run in dataset[model].keys():
         timeserie = dataset[model][run][131:, pixel[0], pixel[1]]
-        timeserie_per_run.append(timeserie)
+        runs_timeserie.append(timeserie)
         
-    timeserie_per_run = np.array(timeserie_per_run)
-    mean_timeserie = np.mean(timeserie_per_run, axis=0)
+    runs_timeserie = np.array(runs_timeserie)
+    mean_timeserie = np.mean(runs_timeserie, axis=0)
     mean = np.mean(mean_timeserie)
 
-    std_timeserie = np.std(timeserie_per_run, axis=0)
+    std_timeserie = np.std(runs_timeserie, axis=0)
+    std = np.mean(std_timeserie)
 
-    normalized_timeseries = (timeserie_per_run - mean) / std_timeserie
-    mean_forced_response = np.mean(normalized_timeseries, axis=0)
+    runs_timeseries_normalized = (runs_timeserie - mean) / std
+    mean_forced_response = np.mean(runs_timeseries_normalized, axis=0)
 
-    return normalized_timeseries, mean_forced_response
+    return runs_timeseries_normalized, mean_forced_response
 
 
 def normalize_model(dataset, model):
@@ -44,126 +45,105 @@ def normalize_model(dataset, model):
     model (string): The model 
 
     Output:
-    normalized_grids (np.array): The normalized grids. Shape of (run, timestep, latitude, longitude)
-    mean forced responses (np.array): The mean forced responses of the normalized grids. Shape of (timestep, latitude, longitude)
+    runs_with_timegrids_normalized (dict): The runs and their associated normalized timegrids. {'run': np.array with shape (timestep, latitude, longitude)} 
+    mean_forced_responses (np.array): The mean forced responses of the normalized timegrids. Shape of (timestep, latitude, longitude)
     """
-    grid_timeserie_per_run = []
+    runs = list(dataset[model].keys())
+    runs_timegrids = []
     for run in dataset[model].keys():
-        grid_timeserie = dataset[model][run][131:, :, :]
-        grid_timeserie_per_run.append(grid_timeserie)
+        timegrid = dataset[model][run][131:, :, :]
+        runs_timegrids.append(timegrid)
         
-    grid_timeserie_per_run = np.array(grid_timeserie_per_run)
-    mean_grid_timeserie = np.mean(grid_timeserie_per_run, axis=0)
-    mean_grid = np.mean(mean_grid_timeserie, axis=0)
+    runs_timegrids = np.array(runs_timegrids)
+    mean_timegrid = np.mean(runs_timegrids, axis=0)
+    mean_grid = np.mean(mean_timegrid, axis=0)
 
-    std_grid_timeserie = np.std(grid_timeserie_per_run, axis=0)
+    std_timegrid = np.std(runs_timegrids, axis=0)
+    std_grid = np.mean(std_timegrid, axis=0)
 
-    normalized_grids = (grid_timeserie_per_run - mean_grid) / std_grid_timeserie
-    mean_forced_responses = np.mean(normalized_grids, axis=0)
+    runs_timegrids_normalized = (runs_timegrids - mean_grid) / std_grid
 
-    return normalized_grids, mean_forced_responses
+    runs_with_timegrids_normalized = {k:v for (k,v) in zip(runs, runs_timegrids_normalized)}
+    mean_forced_responses = np.mean(runs_timegrids_normalized, axis=0)
 
-"""
-def normalize2(dataset, model, mask):
-    
-    Normalizes the grids from 1980 to 2014 (end) of the given model from the climate dataset and computes its associated mean forced responses.
-
-    Keyword arguments:
-    dataset (dict): The climate dataset
-    model (string): The model 
-    mask (np.array): A boolean mask for values that should not be used by the normalization and should not be output if flatten is true.
-    flatten (boolean): If true, outputs the normalized grids flattened without values specified by the mask. Else, outputs the normalized grids in the same shape as in the dataset
-
-    Output:
-    normalized_grids (np.array): The normalized grids. Shape of (run, timestep, latitude x longitude) if flatten, else (run, timestep, latitude, longitude)
-    mean forced responses (np.array): The mean forced responses of the normalized grids. Shape of (timestep, latitude x longitude) if flatten, else (timestep, latitude, longitude)
-    
-    flat_grid_timeserie_per_run = []
-    runs = list(dataset[model].keys())
-    for run in runs:
-        grid_timeserie = dataset[model][run][131:, :, :]
-        flat_grids = []
-        for grid in grid_timeserie:
-            flat_grids.append(from_grid_to_flat(grid, mask))
-        flat_grid_timeserie_per_run.append(flat_grids)
-        
-    flat_grid_timeserie_per_run = np.array(flat_grid_timeserie_per_run)
-    mean_flat_grid_timeserie = np.mean(flat_grid_timeserie_per_run, axis=0)
-    mean_flat_grid = np.mean(mean_flat_grid_timeserie, axis=0)
-
-    std_flat_grid_timeserie = np.std(flat_grid_timeserie_per_run, axis=0)
-
-    normalized_flat_grids = (flat_grid_timeserie_per_run - mean_flat_grid) / std_flat_grid_timeserie
-    mean_forced_flat_responses = np.mean(normalized_flat_grids, axis=0)
-
-    normalized_grids_per_run = []
-    for nfg in normalized_flat_grids:
-        grid_timeserie = []
-        for g in nfg:
-            grid_timeserie.append(from_flat_to_grid(g, mask))
-        normalized_grids_per_run.append(grid_timeserie)
-
-    mean_forced_responses = []
-    for mffr in mean_forced_flat_responses:
-        mean_forced_responses.append(from_flat_to_grid(mffr, mask))
-
-    normalized_grids_per_run = np.array(normalized_grids_per_run)
-    mean_forced_responses = np.array(mean_forced_responses)
-
-    normalized_grids = {k:v for (k,v) in zip(runs, normalized_grids_per_run)}
-
-    return normalized_grids, mean_forced_responses"""
-
-
-def force_normalize_flatten_model(dataset, model, mask, mean, std):
-    flat_grid_timeserie_per_run = []
-    runs = list(dataset[model].keys())
-    for run in runs:
-        grid_timeserie = dataset[model][run][131:, :, :]
-        flat_grids = []
-        for grid in grid_timeserie:
-            flat_grids.append(from_grid_to_flat(grid, mask))
-        flat_grid_timeserie_per_run.append(flat_grids)
-        
-    flat_grid_timeserie_per_run = np.array(flat_grid_timeserie_per_run)
-
-    norm_flat_grids_per_run = (flat_grid_timeserie_per_run - mean) / std
-    mean_flat_forced_responses = np.mean(norm_flat_grids_per_run, axis=0)
-
-    norm_flat_grids = {k:v for (k,v) in zip(runs, norm_flat_grids_per_run)}
-
-    return norm_flat_grids, mean_flat_forced_responses
+    return runs_with_timegrids_normalized, mean_forced_responses
 
 
 def center_flatten_model(dataset, model, mask):
-    flat_grid_timeserie_per_run = []
+    """
+    Centers the grids from 1980 to 2014 (end) of the given model from the climate dataset,
+    computes its associated mean forced responses and flattens the results using the provided mask.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    model (string): The model
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+
+    Output:
+    runs_with_timegrids_centered (dict): The runs and their associated centered timegrids. {'run': np.array with shape (timestep, cells)}
+    mean_forced_responses (np.array): The mean forced responses of the centered timegrids. Shape of (timestep, cells)
+
+    """
     runs = list(dataset[model].keys())
+    runs_timegrids = []
     for run in runs:
-        grid_timeserie = dataset[model][run][131:, :, :]
-        flat_grids = []
-        for grid in grid_timeserie:
-            flat_grids.append(from_grid_to_flat(grid, mask))
-        flat_grid_timeserie_per_run.append(flat_grids)
+        timegrid = dataset[model][run][131:, :, :]
+        flattened_timegrids = []
+        for grid in timegrid:
+            flattened_timegrids.append(from_grid_to_flat(grid, mask))
+        runs_timegrids.append(flattened_timegrids)
         
-    flat_grid_timeserie_per_run = np.array(flat_grid_timeserie_per_run)
-    mean_flat_grid_per_run = np.mean(flat_grid_timeserie_per_run, axis=1)
-    mean_flat_grid_per_run = np.expand_dims(mean_flat_grid_per_run, axis=1)
+    runs_timegrids = np.array(runs_timegrids)
+        
+    runs_mean_grid = np.mean(runs_timegrids, axis=1)
+    runs_mean_grid = np.expand_dims(runs_mean_grid, axis=1)
 
-    norm_flat_grid_timeserie_per_run = flat_grid_timeserie_per_run - mean_flat_grid_per_run
-    mean_flat_forced_responses = np.mean(norm_flat_grid_timeserie_per_run, axis=0)
+    runs_timegrids_centered = runs_timegrids - runs_mean_grid
 
-    norm_flat_grids = {k:v for (k,v) in zip(runs, norm_flat_grid_timeserie_per_run)}
+    runs_with_timegrids_centered = {k:v for (k,v) in zip(runs, runs_timegrids_centered)}
+    mean_forced_responses = np.mean(runs_timegrids_centered, axis=0)
 
-    return norm_flat_grids, mean_flat_forced_responses
+    return runs_with_timegrids_centered, mean_forced_responses
 
 
-def downscale(dataset):
-    for model in dataset.keys():
-        for run in dataset[model].keys():
-            dataset[model][run] = ski.transform.downscale_local_mean(dataset[model][run], (1,2,2))
-           
+def force_normalize_flatten_model(dataset, model, mask, mean, std):
+    """
+    Forces the normalization of the grids from 1980 to 2014 (end) of the given model from the climate dataset,
+    computes its associated mean forced responses and flattens the results using the provided mask.
 
-def normalize_flatten_model(dataset, model, mask):
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    model (string): The model
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+    mean (np.array): The mean for the normalization
+    std (np.array): The std for the normalization
+    
+
+    Output:
+    runs_with_timegrids_normalized (dict): The runs and their associated normalized timegrids. {'run': np.array with shape (timestep, cells)}
+    mean_forced_responses (np.array): The mean forced responses of the normalized timegrids. Shape of (timestep, cells)
+
+    """
+    runs = list(dataset[model].keys())
+    runs_timegrids = []
+    for run in runs:
+        timegrid = dataset[model][run][131:, :, :]
+        flattened_timegrids = []
+        for grid in timegrid:
+            flattened_timegrids.append(from_grid_to_flat(grid, mask))
+        runs_timegrids.append(flattened_timegrids)
+        
+    runs_timegrids = np.array(runs_timegrids)
+
+    runs_timegrids_normalized = (runs_timegrids - mean) / std
+
+    runs_with_timegrids_normalized = {k:v for (k,v) in zip(runs, runs_timegrids_normalized)}
+    mean_forced_responses = np.mean(runs_timegrids_normalized, axis=0)
+
+    return runs_with_timegrids_normalized, mean_forced_responses
+
+
+def normalize_flatten_model(dataset, model, mask, mean_grid=None, std_grid=None):
     """
     Normalizes the grids from 1980 to 2014 (end) of the given model from the climate dataset and 
     computes its associated mean forced responses. Outputs the flattened results with the mean and std.
@@ -171,82 +151,84 @@ def normalize_flatten_model(dataset, model, mask):
     Keyword arguments:
     dataset (dict): The climate dataset
     model (string): The model 
-    mask (np.array): A boolean mask for values that should not be used by the normalization and should not be output if flatten is true.
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+    mean_grid (np.array): The mean for the normalization. If None, it will be computed from the data. Shape of (cells,)
+    std_grid (np.array): The std for the normalization. If None, it will be computed from the data. Shape of (cells,)
     
     Output:
-    normalized_flat_grids (np.array): The normalized flattened grids of shape (run, timestep, latitude x longitude)
-    mean forced responses (np.array): The mean forced responses of the normalized grids. Shape of (timestep, latitude x longitude) if flatten, else (timestep, latitude, longitude)
-    mean_flat_grid (np.array): ... Shape of (latitude x longitude,)
-    std_flat_grid_timeserie (np.array): ... Shape of (timestep, latitude x longitude)
+    runs_with_timegrids_normalized (np.array): The runs and their associated normalized timegrids. {'run': np.array with shape (timestep, cells)} 
+    mean_forced_responses (np.array): The mean forced responses of the normalized timegrids. Shape of (timestep, cells)
+    mean_grid (np.array): The mean grid used for the normalization. Shape of (cells,)
+    std_grid (np.array): The std grid used for the normalization. Shape of (cells,)
     """
-    flat_grid_timeserie_per_run = []
     runs = list(dataset[model].keys())
+    runs_timegrids = []
     for run in runs:
-        grid_timeserie = dataset[model][run][131:, :, :]
-        flat_grids = []
-        for grid in grid_timeserie:
-            flat_grids.append(from_grid_to_flat(grid, mask))
-        flat_grid_timeserie_per_run.append(flat_grids)
+        timegrid = dataset[model][run][131:, :, :]
+        flattened_timegrids = []
+        for grid in timegrid:
+            flattened_timegrids.append(from_grid_to_flat(grid, mask))
+        runs_timegrids.append(flattened_timegrids)
         
-    flat_grid_timeserie_per_run = np.array(flat_grid_timeserie_per_run)
-    mean_flat_grid_timeserie = np.mean(flat_grid_timeserie_per_run, axis=0)
-    mean_flat_grid = np.mean(mean_flat_grid_timeserie, axis=0)
+    runs_timegrids = np.array(runs_timegrids)
 
-    std_flat_grid_timeserie = np.std(flat_grid_timeserie_per_run, axis=0)
-    std_flat_grid = np.mean(std_flat_grid_timeserie, axis=0)
+    if (mean_grid is None):
+        mean_timegrid = np.mean(runs_timegrids, axis=0)
+        mean_grid = np.mean(mean_timegrid, axis=0)
 
-    norm_flat_grids_per_run = (flat_grid_timeserie_per_run - mean_flat_grid) / std_flat_grid
-    mean_flat_forced_response = np.mean(norm_flat_grids_per_run, axis=0)
+    if (std_grid is None):
+        std_timegrid = np.std(runs_timegrids, axis=0)
+        std_grid = np.mean(std_timegrid, axis=0)
 
-    norm_flat_grids = {k:v for (k,v) in zip(runs, norm_flat_grids_per_run)}
+    runs_timegrids_normalized = (runs_timegrids - mean_grid) / std_grid
+    
+    runs_with_timegrids_normalized = {k:v for (k,v) in zip(runs, runs_timegrids_normalized)}
+    mean_forced_responses = np.mean(runs_timegrids_normalized, axis=0)
 
-    return norm_flat_grids, mean_flat_forced_response, mean_flat_grid, std_flat_grid
+    return runs_with_timegrids_normalized, mean_forced_responses, mean_grid, std_grid
 
 
 def normalize_flatten_dataset(dataset, mask):
     """
-    Normalizes the grids from 1980 to 2014 (end) of the given model from the climate dataset and 
-    computes its associated mean forced responses. Outputs the flattened results with the mean and std.
+    Normalizes the grids from 1980 to 2014 (end) for all models in the climate dataset, 
+    computes its associated mean forced responses and flattens the results using the provided mask.
 
     Keyword arguments:
     dataset (dict): The climate dataset
-    model (string): The model 
-    mask (np.array): A boolean mask for values that should not be used by the normalization and should not be output if flatten is true.
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
     
     Output:
-    normalized_flat_grids (np.array): The normalized flattened grids of shape (run, timestep, latitude x longitude)
-    mean forced responses (np.array): The mean forced responses of the normalized grids. Shape of (timestep, latitude x longitude) if flatten, else (timestep, latitude, longitude)
-    mean_flat_grid (np.array): ... Shape of (latitude x longitude,)
-    std_flat_grid_timeserie (np.array): ... Shape of (timestep, latitude x longitude)
+    flat_dataset (dict): The models and their associated runs with normalized timegrids. {'model': {'run': np.array with shape (timestep, cells)}}
+    model_with_mean_forced_responses (dict): The models and their associated mean forced responses. {'model': np.array with shape (timestep, cells)}
+    model_with_mean_grid (dict): The models and their associated mean grid. {'model': np.array with shape (cells,)}
+    model_with_std_grid (dict): The models and their associated std grid. {'model': np.array with shape (cells,)}
     """
     flat_dataset = {}
-    flat_forced_responses = {}
-    mean_flat_grids = {}
-    std_flat_grids = {}
+    model_with_mean_forced_responses = {}
+    model_with_mean_grid = {}
+    model_with_std_grid = {}
 
     models = list(dataset.keys())
 
     for model in models:
-        norm_flat_grids, mean_flat_forced_responses, mean_flat_grid, std_flat_grid = normalize_flatten_model(dataset, model, mask)
+        runs_with_timegrids_normalized, mean_forced_responses, mean_grid, std_grid = normalize_flatten_model(dataset, model, mask)
         
-        flat_dataset[model] = norm_flat_grids
-        flat_forced_responses[model] = mean_flat_forced_responses
-        mean_flat_grids[model] = mean_flat_grid
-        std_flat_grids[model] = std_flat_grid
+        flat_dataset[model] = runs_with_timegrids_normalized
+        model_with_mean_forced_responses[model] = mean_forced_responses
+        model_with_mean_grid[model] = mean_grid
+        model_with_std_grid[model] = std_grid
 
-    return flat_dataset, flat_forced_responses, mean_flat_grids, std_flat_grids
+    return flat_dataset, model_with_mean_forced_responses, model_with_mean_grid, model_with_std_grid
 
 
 def prune(dataset, min_runs=2):
     """
-    Take off models from climate dataset that have less runs than min_runs.
+    Take off models from climate dataset that have less runs than min_runs. 
+    This operation is done in place.
 
     Keyword arguments:
     dataset (dict): The climate dataset
     min_runs (int, default=2): The minimum amount of runs a model should have
-
-    Output:
-    pruned_dataset (dict): The pruned dataset
     """
     bad_models = []
     for model in dataset.keys():
@@ -257,21 +239,64 @@ def prune(dataset, min_runs=2):
         dataset.pop(bad_model)
 
 
-def cut_lat(data, max_lat):
-    data_copy = data.copy()
+def cut_lat(dataset, max_lat):
+    """
+    Cuts the latitude of the grids to the given max_lat.
+    This operation is done in place.
+    
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    max_lat (int): The maximum latitude to cut the grids to
+    """
+    dataset_copy = dataset.copy()
 
-    for model in data_copy.keys():
-        for run in data_copy[model].keys():
-            cut_grids = data_copy[model][run][:, :max_lat, :]
+    for model in dataset_copy.keys():
+        for run in dataset_copy[model].keys():
+            cut_grids = dataset_copy[model][run][:, :max_lat, :]
                 
-            data[model][run] = cut_grids
+            dataset[model][run] = cut_grids
 
 
-def find_union_nan_mask(data):
+def inpute(dataset, mask, value=np.nan):
+    """
+    Inputes the grids of the given data with the given value using the provided mask.
+    This operation is done in place.
+
+    Keyword arguments:
+    dataet (dict): The climate dataset
+    mask (np.array): A boolean mask that indicate cells to fill. Shape of (latitude, longitude)
+    value (float, default=np.nan): The value to fill the cells with
+    """
+    for model in dataset.keys():
+        for run in dataset[model].keys():
+            grids = dataset[model][run]
+            for i in range(grids.shape[0]):
+                grids[i, :, :][mask] = value
+
+
+def downscale(dataset):
+    """
+    Downscales the grids from 1980 to 2014 (end) of the given model from the climate dataset
+    """
+    for model in dataset.keys():
+        for run in dataset[model].keys():
+            dataset[model][run] = ski.transform.downscale_local_mean(dataset[model][run], (1,2,2))
+
+
+def find_union_nan_mask(dataset):
+    """
+    Finds the smallest nan mask that contain all the nan configurations in the grids.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+
+    Outputs:
+    union_nan_mask (np.array): The union of all the nan masks. Shape of (latitude, longitude)
+    """
     init = False
-    for model in data.keys():
-        for run in data[model].keys():
-            grids = data[model][run]
+    for model in dataset.keys():
+        for run in dataset[model].keys():
+            grids = dataset[model][run]
             for i in range(grids.shape[0]):
                 
                 if (not init):
@@ -284,32 +309,32 @@ def find_union_nan_mask(data):
     return union_nan_mask
 
 
-def find_union_nan_mask2(data):
-    union_nan_mask = np.zeros((60, 144))
-
-    for model in data.keys():
-        for run in data[model].keys():
-            grids = data[model][run]
-            for i in range(grids.shape[0]):
-                nan_mask = np.isnan(grids[i, :60, :])
-                union_nan_mask = np.logical_or(union_nan_mask, nan_mask)
-    
-    return union_nan_mask
-
-
-def inpute(data, mask, value=np.nan):
-    for model in data.keys():
-        for run in data[model].keys():
-            grids = data[model][run]
-            for i in range(grids.shape[0]):
-                grids[i, :, :][mask] = value
-
-
 def from_grid_to_flat(grid, mask):
-    return grid[~mask]
+    """
+    Flattens the grid and removes cells using the provided mask.
+
+    Keyword arguments:
+    grid (np.array): The grid to flatten. Shape of (latitude, longitude)
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+
+    Outputs:
+    flattened_grid (np.array): The flattened grid. Shape of (cells,)
+    """
+    flattened_grid = grid[~mask]
+    return flattened_grid
 
 
 def from_flat_to_grid(flat, mask):
+    """
+    Converts the flattened grid back to its original state.
+    
+    Keyword arguments:
+    flat (np.array): The flattened grid. Shape of (cells,)
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+
+    Outputs:
+    grid (np.array): The original grid. Shape of (latitude, longitude)
+    """
     flat_idx = 0
     grid = []
     for nan_bool in np.nditer(mask):
