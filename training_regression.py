@@ -1,6 +1,5 @@
 import pickle as pkl
 import numpy as np
-import torch
 from plots import *
 from utils import *
 from regression import Ridge

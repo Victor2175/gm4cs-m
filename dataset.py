@@ -1,8 +1,5 @@
 import torch
 from torch.utils.data import Dataset
-import numpy as np
-import pickle as pkl
-from utils import *
 
 class CopeDataset(Dataset):
     def __init__(self, samples, labels):
