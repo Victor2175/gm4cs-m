@@ -58,8 +58,8 @@ if __name__ == '__main__':
     print('\nFinished training !\n')
     sys.stdout.flush()
 
-    with open('training_regression_mse_losses_21_04.txt', 'w') as f: 
+    with open('training_regression_mse_losses_26_04.txt', 'w') as f: 
         f.write(json.dumps(all_mse_losses, sort_keys=True, indent=2))
 
-    with open('training_regression_nmse_losses_21_04.txt', 'w') as f:
+    with open('training_regression_nmse_losses_26_04.txt', 'w') as f:
         f.write(json.dumps(all_nmse_losses, sort_keys=True, indent=2))
