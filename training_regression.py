@@ -31,24 +31,24 @@ if __name__ == '__main__':
     # Specify grid search parameters
     lambdas = np.logspace(-1, 5, 20)
     ranks = [10, 50, 100, 300, 500, 700, None]
-    #best_mean_loss, best_median_loss = 1e6, 1e6
-    #best_mean_model, best_median_model = 'hein', 'hein'
     configurations = len(lambdas)*len(ranks)
     ith = 1
 
     print('Training...\n')
     sys.stdout.flush()
 
-    all_losses = {}
+    all_mse_losses = {}
+    all_nmse_losses = {}
     for lambda_ in lambdas:
         for rank in ranks:
             machine_model = Ridge(lambda_=lambda_, rank=rank)
-            losses = LOOCV(cope_data, union_nan_mask, machine_model)
+            mse_losses, nmse_losses = ADV_LOOCV(cope_data, union_nan_mask, machine_model)
 
             if rank is None:
                 rank = np.linalg.matrix_rank(machine_model.W)
 
-            all_losses[f'ridge_{lambda_}_{rank}'] = losses
+            all_mse_losses[f'ridge_{lambda_}_{rank}'] = mse_losses
+            all_nmse_losses[f'ridge_{lambda_}_{rank}'] = nmse_losses
 
             print(f'Finished configuration {ith}/{configurations}')
             sys.stdout.flush()
@@ -58,5 +58,8 @@ if __name__ == '__main__':
     print('\nFinished training !\n')
     sys.stdout.flush()
 
-    with open('training_regression_losses_21_04.txt', 'w') as f: 
-        f.write(json.dumps(all_losses, sort_keys=True, indent=2))
+    with open('training_regression_mse_losses_21_04.txt', 'w') as f: 
+        f.write(json.dumps(all_mse_losses, sort_keys=True, indent=2))
+
+    with open('training_regression_nmse_losses_21_04.txt', 'w') as f:
+        f.write(json.dumps(all_nmse_losses, sort_keys=True, indent=2))

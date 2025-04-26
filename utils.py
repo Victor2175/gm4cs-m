@@ -385,7 +385,7 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
 
     test_losses = {}
 
-    flat_dataset, flat_forced_responses, mean_flat_grids, std_flat_grids = normalize_flatten_dataset(dataset, mask)
+    flat_dataset, model_with_mean_forced_responses, _, _ = normalize_flatten_dataset(dataset, mask)
 
     for eval_model in models:
         train_models = [model for model in models if model != eval_model]
@@ -393,21 +393,21 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
         X_train, y_train = [], []
 
         for train_model in train_models:
-            for run, flat_grid_timeserie in flat_dataset[train_model].items():
-                for flat_grid, flat_forced_response in zip(flat_grid_timeserie, flat_forced_responses[train_model]):
-                    X_train.append(flat_grid)
-                    y_train.append(flat_forced_response)
+            for run, timegrid in flat_dataset[train_model].items():
+                for grid, mean_forced_response in zip(timegrid, model_with_mean_forced_responses[train_model]):
+                    X_train.append(grid)
+                    y_train.append(mean_forced_response)
 
         X_train, y_train = np.array(X_train), np.array(y_train)
         X_train, y_train = torch.tensor(X_train), torch.tensor(y_train)
 
-        norm_flat_grids, norm_flat_forced_responses = center_flatten_model(dataset, eval_model, mask)
+        runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(dataset, eval_model, mask)
 
         X_test, y_test = [], []
-        for run, flat_grid_timeserie in norm_flat_grids.items():
-            for flat_grid, flat_forced_response in zip(flat_grid_timeserie, norm_flat_forced_responses):
-                X_test.append(flat_grid)
-                y_test.append(flat_forced_response)
+        for run, timegrid in runs_with_timegrids_centered.items():
+            for grid, mean_forced_response in zip(timegrid, mean_forced_responses):
+                X_test.append(grid)
+                y_test.append(mean_forced_response)
 
         X_test, y_test = np.array(X_test), np.array(y_test)
         X_test, y_test = torch.tensor(X_test), torch.tensor(y_test)
@@ -432,6 +432,75 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
         print(f"The mean RMSE is {round(mean_test_loss, 2)}")
 
     return test_losses
+
+
+def ADV_LOOCV(dataset, mask, machine_model, verbose=False):
+    models = list(dataset.keys())
+    n_models = len(models)
+    ith_model = 1
+
+    test_mse_losses = {}
+    test_nmse_losses = {}
+
+    flat_dataset, model_with_mean_forced_responses, _, _ = normalize_flatten_dataset(dataset, mask)
+
+    for eval_model in models:
+        train_models = [model for model in models if model != eval_model]
+        
+        X_train, y_train = [], []
+
+        for train_model in train_models:
+            for run, timegrid in flat_dataset[train_model].items():
+                for grid, mean_forced_response in zip(timegrid, model_with_mean_forced_responses[train_model]):
+                    X_train.append(grid)
+                    y_train.append(mean_forced_response)
+
+        X_train, y_train = np.array(X_train), np.array(y_train)
+        X_train, y_train = torch.tensor(X_train), torch.tensor(y_train)
+
+        machine_model.fit(X_train, y_train)
+
+        runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(dataset, eval_model, mask)
+
+        runs_loss = []
+        runs_loss_with_std = []
+        for run, timegrid in runs_with_timegrids_centered.items():
+            X_test, y_test = [], []
+            for grid, mean_forced_response in zip(timegrid, mean_forced_responses):
+                X_test.append(grid)
+                y_test.append(mean_forced_response)
+
+            X_test, y_test = np.array(X_test), np.array(y_test)
+            X_test, y_test = torch.tensor(X_test), torch.tensor(y_test)
+
+            y_hat = machine_model.predict(X_test)
+            temp = (y_hat - y_test)**2
+            run_loss = torch.mean(temp).item()
+            runs_loss.append(run_loss)
+
+            var = torch.var(y_test, axis=0)
+            temp = (y_hat - y_test)**2 / var
+            run_loss_with_std = torch.mean(temp).item()
+            runs_loss_with_std.append(run_loss_with_std)
+            
+        loss = sum(runs_loss) / len(runs_loss)
+        loss_with_std = sum(runs_loss_with_std) / len(runs_loss_with_std)
+
+        if verbose:
+            print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
+        
+        test_mse_losses[eval_model] = loss
+        test_nmse_losses[eval_model] = loss_with_std
+
+        ith_model += 1
+
+    mean_test_loss = sum(test_mse_losses.values()) / len(test_mse_losses)
+    mean_test_loss_with_std = sum(test_nmse_losses.values()) / len(test_nmse_losses)
+
+    if verbose:
+        print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}")
+
+    return test_mse_losses, test_nmse_losses
 
 
 def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=False):
