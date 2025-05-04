@@ -448,7 +448,6 @@ def ADV_LOOCV(dataset, mask, machine_model, verbose=False):
         train_models = [model for model in models if model != eval_model]
         
         X_train, y_train = [], []
-
         for train_model in train_models:
             for run, timegrid in flat_dataset[train_model].items():
                 for grid, mean_forced_response in zip(timegrid, model_with_mean_forced_responses[train_model]):
@@ -475,12 +474,12 @@ def ADV_LOOCV(dataset, mask, machine_model, verbose=False):
 
             y_hat = machine_model.predict(X_test)
             temp = (y_hat - y_test)**2
-            run_loss = torch.mean(temp).item()
+            run_loss = torch.sum(temp).item()
             runs_loss.append(run_loss)
 
             var = torch.var(y_test, axis=0)
-            temp = (y_hat - y_test)**2 / var
-            run_loss_with_std = torch.mean(temp).item()
+            temp /= var
+            run_loss_with_std = torch.sum(temp).item()
             runs_loss_with_std.append(run_loss_with_std)
             
         loss = sum(runs_loss) / len(runs_loss)
@@ -561,6 +560,69 @@ def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=Fals
     return test_losses
 
 
+def ADV_VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=False):
+    models = list(dataset.keys())
+    n_models = len(models)
+    ith_model = 1
+
+    test_mse_losses = {}
+    test_nmse_losses = {}
+
+    flat_dataset, model_with_mean_forced_responses, _, _ = normalize_flatten_dataset(dataset, mask)
+
+    for eval_model in models:
+        train_models = [model for model in models if model != eval_model]
+        
+        X_train, y_train = [], []
+        for train_model in train_models:
+            flat_mean_forced_response = model_with_mean_forced_responses[train_model].flatten()
+            for run, timegrid in flat_dataset[train_model].items():
+                flat_timegrid = timegrid.flatten()
+            
+                X_train.append(flat_timegrid)
+                y_train.append(flat_mean_forced_response)
+
+        X_train, y_train = np.array(X_train), np.array(y_train)
+        X_train, y_train = torch.tensor(X_train).to(torch.float32), torch.tensor(y_train).to(torch.float32)
+
+        runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(dataset, eval_model, mask)
+        flat_mean_forced_response = mean_forced_responses.flatten()
+
+        test_var = torch.var(torch.tensor(mean_forced_responses), dim=0)
+        test_var = torch.cat([test_var] * 34, dim=0)
+
+        X_test, y_test = [], []
+        for run, timegrid in runs_with_timegrids_centered.items():
+            flat_timegrid = timegrid.flatten()
+
+            X_test.append(flat_timegrid)
+            y_test.append(flat_mean_forced_response)
+
+        X_test, y_test = torch.tensor(X_test).to(torch.float32), torch.tensor(y_test).to(torch.float32)
+
+        train_dataset = CopeDataset(samples=X_train, labels=y_train)
+        test_dataset = CopeDataset(samples=X_test, labels=y_test)
+
+        trained_machine_model = train_vae(machine_model, train_dataset, epochs, batch_size, lr)
+        loss, loss_with_std = eval_vae(trained_machine_model, test_dataset, test_var)
+        
+        if verbose:
+            print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
+        
+        test_mse_losses[eval_model] = loss
+        test_nmse_losses[eval_model] = loss_with_std
+
+        ith_model += 1
+
+    mean_test_loss = sum(test_mse_losses.values()) / len(test_mse_losses)
+    mean_test_loss_with_std = sum(test_nmse_losses.values()) / len(test_nmse_losses)
+
+    if verbose:
+        print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}")
+
+    return test_mse_losses, test_nmse_losses
+
+
 def train_vae(model, train_dataset, epochs, batch_size, lr):
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
@@ -588,9 +650,7 @@ def train_vae(model, train_dataset, epochs, batch_size, lr):
     return model
 
 
-def eval_vae(trained_model, test_dataset):
-    test_var = torch.var(test_dataset.labels, dim=1)
-
+def eval_vae(trained_model, test_dataset, test_var):
     test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     criterion = torch.nn.MSELoss(reduction='none')
@@ -603,7 +663,12 @@ def eval_vae(trained_model, test_dataset):
 
             x_hat, _, _ = trained_model(x)
             
-            batch_loss = criterion(x_hat, y).mean(dim=1) / test_var   
-            loss = batch_loss.mean().item()
+            temp = (x_hat - x)**2
+            losses = temp.sum(dim=1)
+            loss = torch.mean(losses).item()
 
-    return loss
+            temp /= test_var
+            losses_with_std = temp.sum(dim=1)
+            loss_with_std = torch.mean(losses_with_std).item()
+
+    return loss, loss_with_std
