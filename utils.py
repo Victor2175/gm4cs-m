@@ -377,7 +377,7 @@ def extract_per_timeserie(cope_data, mask, r=[-10, 10]):
     X, Y = np.array(X), np.array(Y)
     return X, Y
 
-
+"""
 def LOOCV(dataset, mask, machine_model, verbose=False):
     models = list(dataset.keys())
     n_models = len(models)
@@ -432,9 +432,9 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
         print(f"The mean RMSE is {round(mean_test_loss, 2)}")
 
     return test_losses
+"""
 
-
-def ADV_LOOCV(dataset, mask, machine_model, verbose=False):
+def LOOCV(dataset, mask, machine_model, verbose=False):
     models = list(dataset.keys())
     n_models = len(models)
     ith_model = 1
@@ -501,7 +501,7 @@ def ADV_LOOCV(dataset, mask, machine_model, verbose=False):
 
     return test_mse_losses, test_nmse_losses
 
-
+"""
 def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=False):
     models = list(dataset.keys())
     n_models = len(models)
@@ -558,9 +558,9 @@ def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=Fals
         print(f"The mean RMSE is {round(mean_test_loss, 3)} \n")
 
     return test_losses
+"""
 
-
-def ADV_VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=False):
+def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=False):
     models = list(dataset.keys())
     n_models = len(models)
     ith_model = 1

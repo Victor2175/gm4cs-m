@@ -42,7 +42,7 @@ if __name__ == '__main__':
     for lambda_ in lambdas:
         for rank in ranks:
             machine_model = Ridge(lambda_=lambda_, rank=rank)
-            mse_losses, nmse_losses = ADV_LOOCV(cope_data, union_nan_mask, machine_model)
+            mse_losses, nmse_losses = LOOCV(cope_data, union_nan_mask, machine_model)
 
             if rank is None:
                 rank = np.linalg.matrix_rank(machine_model.W)
