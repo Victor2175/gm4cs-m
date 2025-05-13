@@ -60,7 +60,7 @@ class basic_VAE(nn.Module):
     
 
 class VAE(nn.Module):
-    def __init__(self, input_dim=1531, hidden_dim=500, latent_dim=200):
+    def __init__(self, input_dim=44472, hidden_dim=500, latent_dim=100):
         super(VAE, self).__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
@@ -131,3 +131,95 @@ class VAE(nn.Module):
             samples.append(sample)
 
         return samples
+    
+
+class CVAE(nn.Module):
+    def __init__(self, mask, in_channels=34, hidden_dims=None, latent_dim=100):
+        super(CVAE, self).__init__()
+        self.mask = mask
+
+        if hidden_dims is None:
+            self.hidden_dims = [in_channels, 68, 136]
+        else:
+            self.hidden_dims.prepend(in_channels)
+        self.latent_dim = latent_dim
+
+        modules = []
+        for i in range(len(self.hidden_dims) - 1):
+            modules.append(nn.Sequential(
+                nn.Conv2d(self.hidden_dims[i], self.hidden_dims[i + 1], kernel_size=3, stride=1, padding=1),
+                nn.BatchNorm2d(self.hidden_dims[i + 1]),
+                nn.LeakyReLU(),
+            ))
+        
+        self.flatten = nn.Flatten()
+        self.encoder = nn.Sequential(*modules)
+
+        dummy = torch.randn(1, in_channels, 30, 72)
+        with torch.no_grad():
+            encoded_dummy = self.encoder(dummy)
+            flattened_dim = encoded_dummy.numel()
+            decoder_shape = encoded_dummy.shape[1:]
+            print('input shape :', dummy.shape[1:])
+            print('encoded shape :', decoder_shape)
+            print('flattened encoded :', flattened_dim)
+        
+        self.mean_layer = nn.Linear(flattened_dim, latent_dim)
+        self.logvar_layer = nn.Linear(flattened_dim, 1)
+             
+        modules = []
+        self.hidden_dims.reverse()
+        for i in range(len(self.hidden_dims) - 1):
+            modules.append(nn.Sequential(
+                nn.ConvTranspose2d(self.hidden_dims[i], self.hidden_dims[i + 1], kernel_size=3, stride=1, padding=1),
+                nn.BatchNorm2d(self.hidden_dims[i + 1]),
+                nn.LeakyReLU()
+            ))
+
+        self.decoder_input = nn.Linear(latent_dim, flattened_dim)
+        self.unflatten = nn.Unflatten(1, decoder_shape)
+        self.decoder = nn.Sequential(*modules)
+
+
+    def encode(self, x):
+        x = self.encoder(x)
+        x = self.flatten(x)
+        
+        mean, logvar = self.mean_layer(x), self.logvar_layer(x)
+        return mean, logvar
+    
+
+    def reparameterization(self, mean, logvar):
+        epsilon = torch.randn_like(mean)     
+        z = mean + logvar*epsilon
+        return z
+    
+
+    def decode(self, x):
+        x = self.decoder_input(x)
+        x = self.unflatten(x)
+        x = self.decoder(x)
+        return x
+    
+
+    def forward(self, x):
+        mean, logvar = self.encode(x)
+        z = self.reparameterization(mean, logvar)
+        x_hat = self.decode(z)
+        return x_hat, mean, logvar
+    
+
+    def loss(self, x, x_hat, mean, logvar):
+        MSECriterion = nn.MSELoss(reduction='sum')
+        d = self.latent_dim
+        var_dec = 1
+
+        x_new = x[:, :, self.mask]
+        x_hat_new = x_hat[:, :, self.mask]
+
+        reconstruction_term = -MSECriterion(x_new, x_hat_new) / (2*var_dec)
+        KLD = 0.5 * torch.sum((logvar**2)*d - d + torch.linalg.norm(mean)**2 - 2*d*logvar)
+        ELBO = reconstruction_term - KLD
+
+        return -ELBO
+        

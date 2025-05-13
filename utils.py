@@ -55,16 +55,16 @@ def normalize_model(dataset, model):
         runs_timegrids.append(timegrid)
         
     runs_timegrids = np.array(runs_timegrids)
-    mean_timegrid = np.mean(runs_timegrids, axis=0)
-    mean_grid = np.mean(mean_timegrid, axis=0)
+    mean_timegrid = np.nanmean(runs_timegrids, axis=0)
+    mean_grid = np.nanmean(mean_timegrid, axis=0)
 
-    std_timegrid = np.std(runs_timegrids, axis=0)
-    std_grid = np.mean(std_timegrid, axis=0)
+    std_timegrid = np.nanstd(runs_timegrids, axis=0)
+    std_grid = np.nanmean(std_timegrid, axis=0)
 
     runs_timegrids_normalized = (runs_timegrids - mean_grid) / std_grid
 
     runs_with_timegrids_normalized = {k:v for (k,v) in zip(runs, runs_timegrids_normalized)}
-    mean_forced_responses = np.mean(runs_timegrids_normalized, axis=0)
+    mean_forced_responses = np.nanmean(runs_timegrids_normalized, axis=0)
 
     return runs_with_timegrids_normalized, mean_forced_responses
 
@@ -348,6 +348,51 @@ def from_flat_to_grid(flat, mask):
     return grid
 
 
+def from_flat_to_grid_timeserie(flat, mask):
+    """
+    Converts the flattened grid timeserie back to its original state.
+    
+    Keyword arguments:
+    flat (np.array): The flattened grid timeserie. Shape of (timestep*cells, )
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+
+    Outputs:
+    grid_timeserie (np.array): The original grid timeserie. Shape of (timestep, latitude, longitude)
+    """
+    flat_idx = 0
+
+    grids = []
+    for i in range(34):
+        grid = []
+        for nan_bool in np.nditer(mask):
+            if nan_bool:
+                grid.append(np.nan)
+            else:
+                grid.append(flat[flat_idx])
+                flat_idx += 1
+
+        grid = np.array(grid).reshape(mask.shape)
+        grids.append(grid)
+
+    return np.array(grids)
+
+def fill_grid_timeserie(grid_timeserie, mask, method='mean', fill_value=None):
+    filled_grid_timeserie = []
+    if method == 'mean':
+        for grid in grid_timeserie:
+            grid[mask] = np.nanmean(grid)
+            filled_grid_timeserie.append(grid)
+    elif method == 'value':
+        if fill_value is None:
+            raise ValueError("fill_value must be provided when method is 'value'")
+        
+        for grid in grid_timeserie:
+            grid[mask] = fill_value
+            filled_grid_timeserie.append(grid)
+
+    return np.array(filled_grid_timeserie)
+
+
 def extract_per_grid(cope_data, mask, r=[-10, 10]):
     X, Y = [], []
     for model in cope_data.keys():
@@ -376,6 +421,23 @@ def extract_per_timeserie(cope_data, mask, r=[-10, 10]):
 
     X, Y = np.array(X), np.array(Y)
     return X, Y
+
+
+def extract_images(cope_data, mask, r=[-10, 10]):
+    X, Y = [], []
+    for model in cope_data.keys():
+        normalized_grids, mean_forced_responses = normalize_model(cope_data, model)
+        filled_mean_forced_responses = fill_grid_timeserie(mean_forced_responses, mask, method='mean')
+        for run, grid_timeserie in normalized_grids.items():
+            if (r[0] < np.nanmin(grid_timeserie) and np.nanmax(grid_timeserie) < r[1]):
+                filled_grid_timeserie = fill_grid_timeserie(grid_timeserie, mask, method='mean')
+
+                X.append(filled_grid_timeserie)
+                Y.append(filled_mean_forced_responses)
+
+    X, Y = np.array(X), np.array(Y)          
+    return X, Y
+
 
 """
 def LOOCV(dataset, mask, machine_model, verbose=False):
