@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import DataLoader, random_split
 from dataset import CopeDataset
 from vae import *
+import sys
 
 def normalize_pixel(dataset, model, pixel):
     """
@@ -709,6 +710,7 @@ def train_vae(model, train_dataset, epochs, batch_size, lr):
             optimizer.step()
         
         print("Epoch", epoch + 1, "complete !", "\tAverage training loss: ", overall_loss / (batch_idx*batch_size))
+        sys.stdout.flush()
 
     return model
 
