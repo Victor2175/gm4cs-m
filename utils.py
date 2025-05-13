@@ -660,6 +660,7 @@ def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=Fals
             X_test.append(flat_timegrid)
             y_test.append(flat_mean_forced_response)
 
+        X_test, y_test = np.array(X_test), np.array(y_test)
         X_test, y_test = torch.tensor(X_test).to(torch.float32), torch.tensor(y_test).to(torch.float32)
 
         train_dataset = CopeDataset(samples=X_train, labels=y_train)
