@@ -54,6 +54,7 @@ if __name__ == '__main__':
             for latent_dim in latent_dims:
                 model = VAE(input_dim=44472, hidden_dim=hidden_dim, latent_dim=latent_dim).to(device)
                 mse_losses, nmse_losses = VAE_LOOCV(cope_data, union_nan_mask, model, epochs, batch_size, lr)
+                sys.stdout.flush()
 
                 all_mse_losses[f'vae_{lr}_{epochs}'] = mse_losses
                 all_nmse_losses[f'vae_{lr}_{epochs}'] = nmse_losses

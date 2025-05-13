@@ -214,10 +214,10 @@ class CVAE(nn.Module):
         d = self.latent_dim
         var_dec = 1
 
-        x_new = x[:, :, self.mask]
-        x_hat_new = x_hat[:, :, self.mask]
+        x_cells = x[:, :, ~self.mask]
+        x_hat_cells = x_hat[:, :, ~self.mask]
 
-        reconstruction_term = -MSECriterion(x_new, x_hat_new) / (2*var_dec)
+        reconstruction_term = -MSECriterion(x_cells, x_hat_cells) / (2*var_dec)
         KLD = 0.5 * torch.sum((logvar**2)*d - d + torch.linalg.norm(mean)**2 - 2*d*logvar)
         ELBO = reconstruction_term - KLD
 

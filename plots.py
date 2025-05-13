@@ -130,12 +130,14 @@ def get_animated_timeserie(flattened_timeserie, union_nan_mask, flip=True):
     return animation
 
 
-def get_duo_animated_timeserie(left_flattened_timeserie, right_flattened_timeserie, union_nan_mask, left_title='x_hat (predicted)', right_title='y (ground truth)', flip=True):
-    vmax = max(np.max(left_flattened_timeserie), np.max(right_flattened_timeserie))
-    vmin = min(np.min(left_flattened_timeserie), np.min(right_flattened_timeserie))
+def get_duo_animated_timeserie(left_timeserie, right_timeserie, union_nan_mask, left_title='x_hat (predicted)', right_title='y (ground truth)', flip=True, flattened=True):
+    vmax = max(np.max(left_timeserie), np.max(right_timeserie))
+    vmin = min(np.min(left_timeserie), np.min(right_timeserie))
 
-    left_flattened_grid_timeserie = np.reshape(left_flattened_timeserie, (34, -1))
-    right_flattened_grid_timeserie = np.reshape(right_flattened_timeserie, (34, -1))
+    if flattened:
+        left_timeserie = np.reshape(left_timeserie, (34, -1))
+        right_timeserie = np.reshape(right_timeserie, (34, -1))
+    
     fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(18, 6))
 
     # Create a colorbar axis
@@ -145,15 +147,17 @@ def get_duo_animated_timeserie(left_flattened_timeserie, right_flattened_timeser
         ax1.clear()  # Clear the left axis
         ax2.clear()  # Clear the right axis
 
-        x_flattened_grid = left_flattened_grid_timeserie[i]
-        y_flattened_grid = right_flattened_grid_timeserie[i]
-
-        x_grid = from_flat_to_grid(x_flattened_grid, union_nan_mask)
-        y_grid = from_flat_to_grid(y_flattened_grid, union_nan_mask)
+        x_grid = left_timeserie[i]
+        y_grid = right_timeserie[i]
+    
+        if flattened:
+            x_grid = from_flat_to_grid(x_grid, union_nan_mask)
+            y_grid = from_flat_to_grid(y_grid, union_nan_mask)
+       
         if flip:
             x_grid = np.flip(x_grid, 0)
             y_grid = np.flip(y_grid, 0)
-
+        
         # Plot heatmaps
         left = sns.heatmap(x_grid, ax=ax1, cmap='coolwarm', linewidths=0.5, cbar=True, square=False, vmax=vmax, vmin=vmin, xticklabels=False, yticklabels=False, cbar_ax=cbar_ax)
         left.axhline(y=0, color='k', linewidth=1, alpha=0.5)
