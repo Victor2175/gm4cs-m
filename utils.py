@@ -440,6 +440,14 @@ def extract_images(cope_data, mask, r=[-10, 10]):
     return X, Y
 
 
+def get_confidence_interval_grid_timeserie(samples):
+    #samples: np.array of shape (n_samples, 34, 30, 72)
+    samples = np.array(samples)
+    std = np.std(samples, axis=0)
+    conf_int = 1.96 * std / np.sqrt(samples.shape[0])
+
+    return conf_int
+
 """
 def LOOCV(dataset, mask, machine_model, verbose=False):
     models = list(dataset.keys())
@@ -623,7 +631,7 @@ def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=Fals
     return test_losses
 """
 
-def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=False):
+def VAE_LOOCV(dataset, mask, machine_model, device, epochs, batch_size, lr, verbose=False):
     models = list(dataset.keys())
     n_models = len(models)
     ith_model = 1
@@ -667,8 +675,8 @@ def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=Fals
         train_dataset = CopeDataset(samples=X_train, labels=y_train)
         test_dataset = CopeDataset(samples=X_test, labels=y_test)
 
-        trained_machine_model = train_vae(machine_model, train_dataset, epochs, batch_size, lr)
-        loss, loss_with_std = eval_vae(trained_machine_model, test_dataset, test_var)
+        trained_machine_model = train_vae(machine_model, train_dataset, device, epochs, batch_size, lr)
+        loss, loss_with_std = eval_vae(trained_machine_model, test_dataset, device, test_var)
         
         if verbose:
             print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
@@ -687,7 +695,7 @@ def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=Fals
     return test_mse_losses, test_nmse_losses
 
 
-def train_vae(model, train_dataset, epochs, batch_size, lr):
+def train_vae(model, train_dataset, device, epochs, batch_size, lr):
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -698,6 +706,7 @@ def train_vae(model, train_dataset, epochs, batch_size, lr):
         overall_loss = 0
         for batch_idx, (x, y) in enumerate(train_dataloader):
             x = x.to(device)
+            y = y.to(device)
 
             optimizer.zero_grad()
 
@@ -715,20 +724,19 @@ def train_vae(model, train_dataset, epochs, batch_size, lr):
     return model
 
 
-def eval_vae(trained_model, test_dataset, test_var):
+def eval_vae(trained_model, test_dataset, device, test_var):
     test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=True)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    criterion = torch.nn.MSELoss(reduction='none')
 
     trained_model.eval()
 
     with torch.no_grad():
         for batch_idx, (x, y) in enumerate(test_dataloader):
             x = x.to(device)
+            y = y.to(device)
 
             x_hat, _, _ = trained_model(x)
             
-            temp = (x_hat - x)**2
+            temp = (x_hat - y)**2
             losses = temp.sum(dim=1)
             loss = torch.mean(losses).item()
 

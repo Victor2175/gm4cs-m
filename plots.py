@@ -103,18 +103,36 @@ def plot_trio_grids(x, x_hat, y, union_nan_mask, flip=True):
     plt.show()
 
 
-def get_animated_timeserie(flattened_timeserie, union_nan_mask, flip=True):
-    vmax = np.max(flattened_timeserie)
-    vmin = np.min(flattened_timeserie)
+def plot_confidence_interval(samples):
+    #samples: np.array of shape (n_samples, 34, 30, 72)
+    samples = np.array(samples)
+    std = np.std(samples, axis=0)
+    conf_int = 1.96 * std / np.sqrt(samples.shape[0])
+
+    grid1 = np.flip(conf_int[0], 0)
+
+    sns.heatmap(grid1, cmap='coolwarm', linewidths=0.5, xticklabels=False, yticklabels=False)
+    plt.title(f"Standard deviation of {samples.shape[0]} samples")
+    
+    plt.show() 
+
+
+def get_animated_timeserie(timeserie, union_nan_mask, flip=True, flattened=True):
+    vmax = np.nanmax(timeserie)
+    vmin = np.nanmin(timeserie)
     print(vmax, vmin)
 
-    flattened_grid_timeserie = np.reshape(flattened_timeserie, (34, -1))
+    if flattened:
+        timeserie = np.reshape(timeserie, (34, -1))
 
     fig = plt.figure()
 
     def animate(i):
-        flattened_grid = flattened_grid_timeserie[i]
-        grid = from_flat_to_grid(flattened_grid, union_nan_mask)
+        grid = timeserie[i]
+
+        if flattened:
+            grid = from_flat_to_grid(timeserie, union_nan_mask)
+        
         if flip:
             grid = np.flip(grid, 0)
 
@@ -126,13 +144,13 @@ def get_animated_timeserie(flattened_timeserie, union_nan_mask, flip=True):
         res.axvline(x=grid.shape[1], color='k', linewidth=2, alpha=0.5)
         plt.title(f"Time step {i}")
 
-    animation = ani.FuncAnimation(fig, animate, frames=flattened_grid_timeserie.shape[0]-1, interval=1000, repeat=True)
+    animation = ani.FuncAnimation(fig, animate, frames=34, interval=1000, repeat=True)
     return animation
 
 
 def get_duo_animated_timeserie(left_timeserie, right_timeserie, union_nan_mask, left_title='x_hat (predicted)', right_title='y (ground truth)', flip=True, flattened=True):
-    vmax = max(np.max(left_timeserie), np.max(right_timeserie))
-    vmin = min(np.min(left_timeserie), np.min(right_timeserie))
+    vmax = max(np.nanmax(left_timeserie), np.nanmax(right_timeserie))
+    vmin = min(np.nanmin(left_timeserie), np.nanmin(right_timeserie))
 
     if flattened:
         left_timeserie = np.reshape(left_timeserie, (34, -1))
@@ -177,3 +195,4 @@ def get_duo_animated_timeserie(left_timeserie, right_timeserie, union_nan_mask, 
 
     animation = ani.FuncAnimation(fig, animate, frames=34, interval=1000, repeat=True)
     return animation
+
