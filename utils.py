@@ -659,7 +659,7 @@ def VAE_LOOCV(dataset, mask, machine_model, device, epochs, batch_size, lr, verb
         runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(dataset, eval_model, mask)
         flat_mean_forced_response = mean_forced_responses.flatten()
 
-        test_var = torch.var(torch.tensor(mean_forced_responses), dim=0)
+        test_var = torch.var(torch.tensor(mean_forced_responses), dim=0).to(device)
         test_var = torch.cat([test_var] * 34, dim=0)
 
         X_test, y_test = [], []
