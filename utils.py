@@ -631,10 +631,13 @@ def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=Fals
     return test_losses
 """
 
-def VAE_LOOCV(dataset, mask, machine_model, device, epochs, batch_size, lr, verbose=False):
+def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
     models = list(dataset.keys())
     n_models = len(models)
     ith_model = 1
+
+    hidden_dim, latent_dim = list(model_configs.values())
+    device, epochs, batch_size, lr = list(training_configs.values())
 
     test_mse_losses = {}
     test_nmse_losses = {}
@@ -643,6 +646,7 @@ def VAE_LOOCV(dataset, mask, machine_model, device, epochs, batch_size, lr, verb
 
     for eval_model in models:
         train_models = [model for model in models if model != eval_model]
+        machine_model = VAE(input_dim=44472, hidden_dim=hidden_dim, latent_dim=latent_dim).to(device)
         
         X_train, y_train = [], []
         for train_model in train_models:
