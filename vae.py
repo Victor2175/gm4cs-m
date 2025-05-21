@@ -141,13 +141,14 @@ class CVAE(nn.Module):
         if hidden_dims is None:
             self.hidden_dims = [in_channels, 68, 136]
         else:
-            self.hidden_dims.prepend(in_channels)
+            self.hidden_dims = hidden_dims
+            self.hidden_dims.insert(0, in_channels)
         self.latent_dim = latent_dim
 
         modules = []
         for i in range(len(self.hidden_dims) - 1):
             modules.append(nn.Sequential(
-                nn.Conv2d(self.hidden_dims[i], self.hidden_dims[i + 1], kernel_size=3, stride=1, padding=1),
+                nn.Conv2d(self.hidden_dims[i], self.hidden_dims[i + 1], kernel_size=3, stride=2, padding=1),
                 nn.LeakyReLU(),
             ))
         
@@ -169,7 +170,7 @@ class CVAE(nn.Module):
         self.hidden_dims.reverse()
         for i in range(len(self.hidden_dims) - 1):
             modules.append(nn.Sequential(
-                nn.ConvTranspose2d(self.hidden_dims[i], self.hidden_dims[i + 1], kernel_size=3, stride=1, padding=1, output_padding=0),
+                nn.ConvTranspose2d(self.hidden_dims[i], self.hidden_dims[i + 1], kernel_size=3, stride=2, padding=1, output_padding=1),
                 nn.LeakyReLU()
             ))
 
@@ -218,13 +219,25 @@ class CVAE(nn.Module):
 
         #x_cells = x[:, :, ~self.mask]
         #x_hat_cells = x_hat[:, :, ~self.mask]
-
         #reconstruction_term = -MSECriterion(x_cells, x_hat_cells) / (2*var_dec)
-        #print('x shape:', x.shape)
-        #print('x_hat shape:', x_hat.shape)
+        
         reconstruction_term = -MSECriterion(x, x_hat) / (2*var_dec)
         KLD = 0.5 * torch.sum((logvar**2)*d - d + torch.linalg.norm(mean)**2 - 2*d*logvar)
         ELBO = reconstruction_term - KLD
 
         return -ELBO
+    
+
+    def sample(self, x, n_samples):
+        # x shape of (34, 30, 72)
+        samples = []
+        x = x.unsqueeze(0)
+        mean, logvar = self.encode(x)
+        for i in range(n_samples):
+            z = self.reparameterization(mean, logvar)
+            sample = self.decode(z)
+            samples.append(sample)
+
+        samples = torch.cat(samples, dim=0)
+        return samples
         
