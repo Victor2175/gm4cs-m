@@ -277,7 +277,11 @@ def inpute(dataset, mask, value=np.nan):
 
 def downscale(dataset):
     """
-    Downscales the grids from 1980 to 2014 (end) of the given model from the climate dataset
+    Downscales the grids from 1980 to 2014 (end) of the given model from the climate dataset.
+    This operation is done in place.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
     """
     for model in dataset.keys():
         for run in dataset[model].keys():
@@ -395,6 +399,18 @@ def fill_grid_timeserie(grid_timeserie, mask, method='mean', fill_value=None):
 
 
 def extract_per_grid(cope_data, mask, r=[-10, 10]):
+    """
+    Extracts the data and their associated mean forced responses into grids.
+
+    Keyword arguments:
+    cope_data (dict): The climate dataset
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+    r (list of floats): The range of values to consider for the grids. Default is [-10, 10]
+
+    Outputs:
+    X (np.array): The grids. Shape of (samples, cells)
+    Y (np.array): The mean forced responses. Shape of (samples, cells)
+    """
     X, Y = [], []
     for model in cope_data.keys():
         normalized_grids, mean_forced_responses, _, _ = normalize_flatten_model(cope_data, model, mask)
@@ -409,6 +425,18 @@ def extract_per_grid(cope_data, mask, r=[-10, 10]):
 
 
 def extract_per_timeserie(cope_data, mask, r=[-10, 10]):
+    """
+    Extracts the data and their associated mean forced responses into timeseries.
+
+    Keyword arguments:
+    cope_data (dict): The climate dataset
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+    r (list of floats): The range of values to consider for the grids. Default is [-10, 10]
+
+    Outputs:
+    X (np.array): The timeseries. Shape of (samples, 34*cells)
+    Y (np.array): The mean forced responses. Shape of (samples, 34*cells)
+    """
     X, Y = [], []
     for model in cope_data.keys():
         normalized_grids, mean_forced_response, _, _ = normalize_flatten_model(cope_data, model, mask)
@@ -425,6 +453,18 @@ def extract_per_timeserie(cope_data, mask, r=[-10, 10]):
 
 
 def extract_images(cope_data, mask, r=[-10, 10]):
+    """
+    Extracts the data and their associated mean forced responses into images by filling the nan values with the mean of the grid.
+    
+    Keyword arguments:
+    cope_data (dict): The climate dataset
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+    r (list of floats): The range of values to consider for the grids. Default is [-10, 10]
+
+    Outputs:
+    X (np.array): The images. Shape of (samples, 34, latitude, longitude)
+    Y (np.array): The mean forced responses. Shape of (samples, 34, latitude, longitude)
+    """
     X, Y = [], []
     for model in cope_data.keys():
         normalized_grids, mean_forced_responses = normalize_model(cope_data, model)
@@ -441,69 +481,21 @@ def extract_images(cope_data, mask, r=[-10, 10]):
 
 
 def get_confidence_interval_grid_timeserie(samples):
-    #samples: np.array of shape (n_samples, 34, 30, 72)
+    """
+    Computes the confidence interval of the given samples.
+
+    Keyword arguments:
+    samples (np.array): The samples to compute the confidence interval for. Shape of (n_samples, timestep, *)
+
+    Outputs:
+    conf_int (np.array): The confidence interval of the samples. Shape of (timestep, *)
+    """
     samples = np.array(samples)
     std = np.std(samples, axis=0)
     conf_int = 1.96 * std / np.sqrt(samples.shape[0])
 
     return conf_int
 
-"""
-def LOOCV(dataset, mask, machine_model, verbose=False):
-    models = list(dataset.keys())
-    n_models = len(models)
-    ith_model = 1
-
-    test_losses = {}
-
-    flat_dataset, model_with_mean_forced_responses, _, _ = normalize_flatten_dataset(dataset, mask)
-
-    for eval_model in models:
-        train_models = [model for model in models if model != eval_model]
-        
-        X_train, y_train = [], []
-
-        for train_model in train_models:
-            for run, timegrid in flat_dataset[train_model].items():
-                for grid, mean_forced_response in zip(timegrid, model_with_mean_forced_responses[train_model]):
-                    X_train.append(grid)
-                    y_train.append(mean_forced_response)
-
-        X_train, y_train = np.array(X_train), np.array(y_train)
-        X_train, y_train = torch.tensor(X_train), torch.tensor(y_train)
-
-        runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(dataset, eval_model, mask)
-
-        X_test, y_test = [], []
-        for run, timegrid in runs_with_timegrids_centered.items():
-            for grid, mean_forced_response in zip(timegrid, mean_forced_responses):
-                X_test.append(grid)
-                y_test.append(mean_forced_response)
-
-        X_test, y_test = np.array(X_test), np.array(y_test)
-        X_test, y_test = torch.tensor(X_test), torch.tensor(y_test)
-
-        machine_model.fit(X_train, y_train)
-        y_hat = machine_model.predict(X_test)
-        criterion = torch.nn.MSELoss()
-        test_var = torch.var(y_test)
-
-        #loss = torch.sqrt(criterion(y_hat, y_test)).item()
-        loss = (criterion(y_hat, y_test) / test_var).item()
-
-        if verbose:
-            print(f"[{ith_model}/{n_models}] The NMSE for model {eval_model} is {round(loss, 2)}")
-        
-        test_losses[eval_model] = loss
-        ith_model += 1
-
-    mean_test_loss = sum(test_losses.values()) / len(test_losses)
-
-    if verbose:
-        print(f"The mean RMSE is {round(mean_test_loss, 2)}")
-
-    return test_losses
-"""
 
 def LOOCV(dataset, mask, machine_model, verbose=False):
     models = list(dataset.keys())
@@ -545,12 +537,12 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
 
             y_hat = machine_model.predict(X_test)
             temp = (y_hat - y_test)**2
-            run_loss = torch.sum(temp).item()
+            run_loss = torch.mean(temp).item()
             runs_loss.append(run_loss)
 
             var = torch.var(y_test, axis=0)
             temp /= var
-            run_loss_with_std = torch.sum(temp).item()
+            run_loss_with_std = torch.mean(temp).item()
             runs_loss_with_std.append(run_loss_with_std)
             
         loss = sum(runs_loss) / len(runs_loss)
@@ -572,64 +564,6 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
 
     return test_mse_losses, test_nmse_losses
 
-"""
-def VAE_LOOCV(dataset, mask, machine_model, epochs, batch_size, lr, verbose=False):
-    models = list(dataset.keys())
-    n_models = len(models)
-    ith_model = 1
-
-    test_losses = {}
-
-    flat_dataset, flat_forced_responses, mean_flat_grids, std_flat_grids = normalize_flatten_dataset(dataset, mask)
-
-    for eval_model in models:
-        train_models = [model for model in models if model != eval_model]
-        
-        X_train, y_train = [], []
-        for train_model in train_models:
-            flattened_forced_response = flat_forced_responses[train_model].flatten()
-            for run, flat_grid_timeserie in flat_dataset[train_model].items():
-                flattened_grid_timeserie = flat_grid_timeserie.flatten()
-            
-                X_train.append(flattened_grid_timeserie)
-                y_train.append(flattened_forced_response)
-
-        X_train, y_train = np.array(X_train), np.array(y_train)
-        X_train, y_train = torch.tensor(X_train).to(torch.float32), torch.tensor(y_train).to(torch.float32)
-
-        norm_flat_grids, norm_flat_forced_responses = center_flatten_model(dataset, eval_model, mask)
-
-        X_test, y_test = [], []
-        flattened_forced_response = norm_flat_forced_responses.flatten()
-        for run, flat_grid_timeserie in norm_flat_grids.items():
-            flattened_grid_timeserie = flat_grid_timeserie.flatten()
-            
-            X_test.append(flattened_grid_timeserie)
-            y_test.append(flattened_forced_response)
-
-        X_test, y_test = np.array(X_test), np.array(y_test)
-        X_test, y_test = torch.tensor(X_test).to(torch.float32), torch.tensor(y_test).to(torch.float32)
-
-        train_dataset = CopeDataset(samples=X_train, labels=y_train)
-        test_dataset = CopeDataset(samples=X_test, labels=y_test)
-        
-        trained_machine_model = train_vae(machine_model, train_dataset, epochs, batch_size, lr)
-        
-        loss = eval_vae(trained_machine_model, test_dataset)
-
-        if verbose:
-            print(f"[{ith_model}/{n_models}] The NMSE for model {eval_model} is {round(loss, 3)} \n")
-        
-        test_losses[eval_model] = loss
-        ith_model += 1
-
-    mean_test_loss = sum(test_losses.values()) / len(test_losses)
-
-    if verbose:
-        print(f"The mean RMSE is {round(mean_test_loss, 3)} \n")
-
-    return test_losses
-"""
 
 def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
     models = list(dataset.keys())
@@ -741,11 +675,11 @@ def eval_vae(trained_model, test_dataset, device, test_var):
             x_hat, _, _ = trained_model(x)
             
             temp = (x_hat - y)**2
-            losses = temp.sum(dim=1)
+            losses = temp.mean(dim=1)
             loss = torch.mean(losses).item()
 
             temp /= test_var
-            losses_with_std = temp.sum(dim=1)
+            losses_with_std = temp.mean(dim=1)
             loss_with_std = torch.mean(losses_with_std).item()
 
     return loss, loss_with_std
