@@ -132,7 +132,7 @@ def plot_trio_grids(x, x_hat, y, union_nan_mask, flip=True):
 
 
 def plot_confidence_interval(samples):
-    #samples: np.array of shape (n_samples, 34, 30, 72)
+    #samples: shape of (n_samples, 34, 30, 72)
     samples = np.array(samples)
     std = np.std(samples, axis=0)
     conf_int = 1.96 * std / np.sqrt(samples.shape[0])
@@ -146,9 +146,10 @@ def plot_confidence_interval(samples):
 
 
 def get_animated_timeserie(timeserie, union_nan_mask, flip=True, flattened=True):
+    timeserie = np.array(timeserie)
+
     vmax = np.nanmax(timeserie)
     vmin = np.nanmin(timeserie)
-    print(vmax, vmin)
 
     if flattened:
         timeserie = np.reshape(timeserie, (34, -1))
@@ -159,8 +160,8 @@ def get_animated_timeserie(timeserie, union_nan_mask, flip=True, flattened=True)
         grid = timeserie[i]
 
         if flattened:
-            grid = from_flat_to_grid(timeserie, union_nan_mask)
-        
+            grid = from_flat_to_grid(grid, union_nan_mask)
+
         if flip:
             grid = np.flip(grid, 0)
 
