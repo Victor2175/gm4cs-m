@@ -31,9 +31,9 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Specify parameters
-    epochs = 30
+    epochs = 50
     lrs = [1e-3, 1.5e-3, 2e-3]
-    hidden_dims = [500, 1000, 1500]
+    hidden_dims = [[68, 136]]
     latent_dims = [100, 200, 300]
     configurations = len(lrs)*len(hidden_dims)*len(latent_dims)
 
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     ith = 1
 
-    print('Begin VAE cross validation...\n')
+    print('Begin CVAE cross validation...\n')
     sys.stdout.flush()
 
     all_mse_losses = {}
@@ -56,11 +56,11 @@ if __name__ == '__main__':
                 model_configs = {'hidden_dim': hidden_dim, 'latent_dim': latent_dim}
                 training_configs = {'device': device, 'epochs': epochs, 'batch_size': batch_size, 'lr': lr}
 
-                mse_losses, nmse_losses = VAE_LOOCV(cope_data, union_nan_mask, model_configs, training_configs)
+                mse_losses, nmse_losses = CVAE_LOOCV(cope_data, union_nan_mask, model_configs, training_configs)
                 sys.stdout.flush()
 
-                all_mse_losses[f'vae_{lr}_{hidden_dim}_{latent_dim}'] = mse_losses
-                all_nmse_losses[f'vae_{lr}_{hidden_dim}_{latent_dim}'] = nmse_losses
+                all_mse_losses[f'cvae_{lr}_{hidden_dim}_{latent_dim}'] = mse_losses
+                all_nmse_losses[f'cvae_{lr}_{hidden_dim}_{latent_dim}'] = nmse_losses
                 
                 print(f'Finished configuration {ith}/{configurations}')
                 sys.stdout.flush()
@@ -71,8 +71,8 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     training_date = date.today().strftime('%d_%m_%y')
-    with open(f'training_vae_mse_losses_{training_date}.txt', 'w') as f: 
+    with open(f'training_cvae_mse_losses_{training_date}.txt', 'w') as f: 
         f.write(json.dumps(all_mse_losses, sort_keys=True, indent=2))
 
-    with open(f'training_vae_nmse_losses_{training_date}.txt', 'w') as f:
+    with open(f'training_cvae_nmse_losses_{training_date}.txt', 'w') as f:
         f.write(json.dumps(all_nmse_losses, sort_keys=True, indent=2))
