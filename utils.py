@@ -37,17 +37,21 @@ def normalize_pixel(dataset, model, pixel):
     return runs_timeseries_normalized, mean_forced_response
 
 
-def normalize_model(dataset, model):
+def normalize_model(dataset, model, mean_grid=None, std_grid=None):
     """
     Normalizes the grids from 1980 to 2014 (end) of the given model from the climate dataset and computes its associated mean forced responses.
 
     Keyword arguments:
     dataset (dict): The climate dataset
     model (string): The model 
+    mean_grid (np.array): The mean for the normalization. If None, it will be computed from the data. Shape of (latitude, longitude)
+    std_grid (np.array): The std for the normalization. If None, it will be computed from the data. Shape of (latitude, longitude)
 
     Output:
     runs_with_timegrids_normalized (dict): The runs and their associated normalized timegrids. {'run': np.array with shape (timestep, latitude, longitude)} 
     mean_forced_responses (np.array): The mean forced responses of the normalized timegrids. Shape of (timestep, latitude, longitude)
+    mean_grid (np.array): The mean grid used for the normalization. Shape of (latitude, longitude)
+    std_grid (np.array): The std grid used for the normalization. Shape of (latitude, longitude)
     """
     runs = list(dataset[model].keys())
     runs_timegrids = []
@@ -56,19 +60,52 @@ def normalize_model(dataset, model):
         runs_timegrids.append(timegrid)
         
     runs_timegrids = np.array(runs_timegrids)
-    mean_timegrid = np.nanmean(runs_timegrids, axis=0)
-    mean_grid = np.nanmean(mean_timegrid, axis=0)
 
-    std_timegrid = np.nanstd(runs_timegrids, axis=0)
-    std_grid = np.nanmean(std_timegrid, axis=0)
+    if (mean_grid is None):
+        mean_timegrid = np.nanmean(runs_timegrids, axis=0)
+        mean_grid = np.nanmean(mean_timegrid, axis=0)
+
+    if (std_grid is None):
+        std_timegrid = np.nanstd(runs_timegrids, axis=0)
+        std_grid = np.nanmean(std_timegrid, axis=0)
 
     runs_timegrids_normalized = (runs_timegrids - mean_grid) / std_grid
 
     runs_with_timegrids_normalized = {k:v for (k,v) in zip(runs, runs_timegrids_normalized)}
     mean_forced_responses = np.nanmean(runs_timegrids_normalized, axis=0)
 
-    return runs_with_timegrids_normalized, mean_forced_responses
+    return runs_with_timegrids_normalized, mean_forced_responses, mean_grid, std_grid
 
+
+def center_model(dataset, model):
+    """
+    Centers the grids from 1980 to 2014 (end) of the given model from the climate dataset and computes its associated mean forced responses.
+    
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    model (string): The model
+
+    Output:
+    runs_with_timegrids_centered (dict): The runs and their associated centered timegrids. {'run': np.array with shape (timestep, latitude, longitude)}
+    mean_forced_responses (np.array): The mean forced responses of the centered timegrids. Shape of (timestep, latitude, longitude)
+    """
+    runs = list(dataset[model].keys())
+    runs_timegrids = []
+    for run in runs:
+        timegrid = dataset[model][run][131:, :, :]
+        runs_timegrids.append(timegrid)
+        
+    runs_timegrids = np.array(runs_timegrids)
+        
+    runs_mean_grid = np.mean(runs_timegrids, axis=1)
+    runs_mean_grid = np.expand_dims(runs_mean_grid, axis=1)
+
+    runs_timegrids_centered = runs_timegrids - runs_mean_grid
+
+    runs_with_timegrids_centered = {k:v for (k,v) in zip(runs, runs_timegrids_centered)}
+    mean_forced_responses = np.mean(runs_timegrids_centered, axis=0)
+
+    return runs_with_timegrids_centered, mean_forced_responses
 
 def center_flatten_model(dataset, model, mask):
     """
@@ -95,7 +132,7 @@ def center_flatten_model(dataset, model, mask):
         runs_timegrids.append(flattened_timegrids)
         
     runs_timegrids = np.array(runs_timegrids)
-        
+    
     runs_mean_grid = np.mean(runs_timegrids, axis=1)
     runs_mean_grid = np.expand_dims(runs_mean_grid, axis=1)
 
@@ -187,6 +224,37 @@ def normalize_flatten_model(dataset, model, mask, mean_grid=None, std_grid=None)
     mean_forced_responses = np.mean(runs_timegrids_normalized, axis=0)
 
     return runs_with_timegrids_normalized, mean_forced_responses, mean_grid, std_grid
+
+
+def normalize_dataset(dataset):
+    """
+    Normalizes the grids from 1980 to 2014 (end) for all models in the climate dataset and computes their associated mean forced responses.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+
+    Output:
+    flat_dataset (dict): The models and their associated runs with normalized timegrids. {'model': {'run': np.array with shape (timestep, latitude, longitude)}}
+    model_with_mean_forced_responses (dict): The models and their associated mean forced responses. {'model': np.array with shape (timestep, latitude, longitude)}
+    model_with_mean_grid (dict): The models and their associated mean grid. {'model': np.array with shape (latitude, longitude)}
+    model_with_std_grid (dict): The models and their associated std grid. {'model': np.array with shape (latitude, longitude)}
+    """
+    flat_dataset = {}
+    model_with_mean_forced_responses = {}
+    model_with_mean_grid = {}
+    model_with_std_grid = {}
+
+    models = list(dataset.keys())
+
+    for model in models:
+        runs_with_timegrids_normalized, mean_forced_responses, mean_grid, std_grid = normalize_model(dataset, model)
+        
+        flat_dataset[model] = runs_with_timegrids_normalized
+        model_with_mean_forced_responses[model] = mean_forced_responses
+        model_with_mean_grid[model] = mean_grid
+        model_with_std_grid[model] = std_grid
+
+    return flat_dataset, model_with_mean_forced_responses, model_with_mean_grid, model_with_std_grid
 
 
 def normalize_flatten_dataset(dataset, mask):
@@ -380,6 +448,7 @@ def from_flat_to_grid_timeserie(flat, mask):
         grids.append(grid)
 
     return np.array(grids)
+
 
 def fill_grid_timeserie(grid_timeserie, mask, method='mean', fill_value=None):
     filled_grid_timeserie = []
@@ -613,7 +682,7 @@ def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
         train_dataset = CopeDataset(samples=X_train, labels=y_train)
         test_dataset = CopeDataset(samples=X_test, labels=y_test)
 
-        trained_machine_model = train_vae(machine_model, train_dataset, device, epochs, batch_size, lr)
+        trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr)
         loss, loss_with_std = eval_vae(trained_machine_model, test_dataset, device, test_var)
         
         if verbose:
@@ -633,7 +702,76 @@ def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
     return test_mse_losses, test_nmse_losses
 
 
-def train_vae(model, train_dataset, device, epochs, batch_size, lr):
+def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
+    models = list(dataset.keys())
+    n_models = len(models)
+    ith_model = 1
+
+    in_channels, hidden_dims, latent_dim = list(model_configs.values())
+    device, epochs, batch_size, lr = list(training_configs.values())
+
+    test_mse_losses = {}
+    test_nmse_losses = {}
+
+    normalized_dataset, model_with_mean_forced_responses, _, _ = normalize_dataset(dataset, mask)
+
+    for eval_model in models:
+        train_models = [model for model in models if model != eval_model]
+        machine_model = CVAE(mask=mask, in_channels=in_channels, hidden_dims=hidden_dims, latent_dim=latent_dim).to(device)
+        
+        X_train, y_train = [], []
+        for train_model in train_models:
+            normalized_mean_forced_response = model_with_mean_forced_responses[train_model]
+            filled_mean_forced_response = fill_grid_timeserie(normalized_mean_forced_response, mask)
+            for run, timegrid in normalized_dataset[train_model].items():
+                filled_timegrid = fill_grid_timeserie(timegrid, mask)
+
+                X_train.append(filled_timegrid)
+                y_train.append(filled_mean_forced_response)
+
+        X_train, y_train = np.array(X_train), np.array(y_train)
+        X_train, y_train = torch.tensor(X_train).to(torch.float32), torch.tensor(y_train).to(torch.float32)
+
+        runs_with_timegrids_centered, mean_forced_response = center_model(dataset, eval_model)
+        filled_mean_forced_response = fill_grid_timeserie(mean_forced_response, mask)
+
+        test_var = torch.var(torch.tensor(filled_mean_forced_response), dim=0).to(device)
+        test_var = torch.cat([test_var] * 34, dim=0)
+
+        X_test, y_test = [], []
+        for run, timegrid in runs_with_timegrids_centered.items():
+            filled_timegrid = fill_grid_timeserie(timegrid, mask)
+
+            X_test.append(filled_timegrid)
+            y_test.append(filled_mean_forced_response)
+
+        X_test, y_test = np.array(X_test), np.array(y_test)
+        X_test, y_test = torch.tensor(X_test).to(torch.float32), torch.tensor(y_test).to(torch.float32)
+
+        train_dataset = CopeDataset(samples=X_train, labels=y_train)
+        test_dataset = CopeDataset(samples=X_test, labels=y_test)
+
+        trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr)
+        loss, loss_with_std = eval_cvae(trained_machine_model, test_dataset, device, test_var)
+        
+        if verbose:
+            print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
+        
+        test_mse_losses[eval_model] = loss
+        test_nmse_losses[eval_model] = loss_with_std
+
+        ith_model += 1
+
+    mean_test_loss = sum(test_mse_losses.values()) / len(test_mse_losses)
+    mean_test_loss_with_std = sum(test_nmse_losses.values()) / len(test_nmse_losses)
+
+    if verbose:
+        print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}")
+
+    return test_mse_losses, test_nmse_losses
+
+
+def train_a_vae(model, train_dataset, device, epochs, batch_size, lr):
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -681,5 +819,26 @@ def eval_vae(trained_model, test_dataset, device, test_var):
             temp /= test_var
             losses_with_std = temp.mean(dim=1)
             loss_with_std = torch.mean(losses_with_std).item()
+
+    return loss, loss_with_std
+
+
+def eval_cvae(trained_model, test_dataset, mask, device, test_var):
+    test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=True)
+
+    trained_model.eval()
+
+    with torch.no_grad():
+        for batch_idx, (x, y) in enumerate(test_dataloader):
+            x = x.to(device)
+            y = y.to(device)
+
+            x_hat, _, _ = trained_model(x)
+            
+            temp = (x_hat[:, :,  ~mask] - y[:, :, ~mask])**2
+            loss = torch.mean(temp).item()
+
+            temp /= test_var[:, :, ~mask]
+            loss_with_std = torch.mean(temp).item()
 
     return loss, loss_with_std
