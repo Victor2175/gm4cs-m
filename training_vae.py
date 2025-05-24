@@ -70,7 +70,7 @@ if __name__ == '__main__':
     print('\nFinished training !\n')
     sys.stdout.flush()
 
-    training_date = date.today().strftime('%d_%m_%y')
+    training_date = date.today().strftime('%d_%m_%Y')
     with open(f'training_vae_mse_losses_{training_date}.txt', 'w') as f: 
         f.write(json.dumps(all_mse_losses, sort_keys=True, indent=2))
 
