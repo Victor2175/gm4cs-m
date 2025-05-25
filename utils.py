@@ -713,7 +713,7 @@ def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
     test_mse_losses = {}
     test_nmse_losses = {}
 
-    normalized_dataset, model_with_mean_forced_responses, _, _ = normalize_dataset(dataset, mask)
+    normalized_dataset, model_with_mean_forced_responses, _, _ = normalize_dataset(dataset)
 
     for eval_model in models:
         train_models = [model for model in models if model != eval_model]
