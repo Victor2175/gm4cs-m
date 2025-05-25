@@ -71,8 +71,8 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     training_date = date.today().strftime('%d_%m_%Y')
-    with open(f'training_vae_mse_losses_{training_date}.txt', 'w') as f: 
+    with open(f'training_results/training_vae_mse_losses_{training_date}.txt', 'w') as f: 
         f.write(json.dumps(all_mse_losses, sort_keys=True, indent=2))
 
-    with open(f'training_vae_nmse_losses_{training_date}.txt', 'w') as f:
+    with open(f'training_results/training_vae_nmse_losses_{training_date}.txt', 'w') as f:
         f.write(json.dumps(all_nmse_losses, sort_keys=True, indent=2))
