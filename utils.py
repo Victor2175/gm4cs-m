@@ -752,7 +752,7 @@ def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
         test_dataset = CopeDataset(samples=X_test, labels=y_test)
 
         trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr)
-        loss, loss_with_std = eval_cvae(trained_machine_model, test_dataset, device, test_var)
+        loss, loss_with_std = eval_cvae(trained_machine_model, test_dataset, mask, device, test_var)
         
         if verbose:
             print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
