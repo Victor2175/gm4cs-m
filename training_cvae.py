@@ -33,6 +33,7 @@ if __name__ == '__main__':
     # Specify parameters
     epochs = 50
     lrs = [1e-3, 1.5e-3, 2e-3]
+    in_channels = 34
     hidden_dims = [[68, 136]]
     latent_dims = [100, 200, 300]
     configurations = len(lrs)*len(hidden_dims)*len(latent_dims)
@@ -53,7 +54,7 @@ if __name__ == '__main__':
     for lr in lrs:
         for hidden_dim in hidden_dims:
             for latent_dim in latent_dims:
-                model_configs = {'hidden_dim': hidden_dim, 'latent_dim': latent_dim}
+                model_configs = {'in_channels': in_channels, 'hidden_dim': hidden_dim, 'latent_dim': latent_dim}
                 training_configs = {'device': device, 'epochs': epochs, 'batch_size': batch_size, 'lr': lr}
 
                 mse_losses, nmse_losses = CVAE_LOOCV(cope_data, union_nan_mask, model_configs, training_configs)
