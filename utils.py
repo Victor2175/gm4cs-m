@@ -736,7 +736,7 @@ def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
         filled_mean_forced_response = fill_grid_timeserie(mean_forced_response, mask)
 
         test_var = torch.var(torch.tensor(filled_mean_forced_response), dim=0).to(device)
-        test_var = torch.cat([test_var] * 34, dim=0)
+        test_var = torch.stack([test_var] * 34)
 
         X_test, y_test = [], []
         for run, timegrid in runs_with_timegrids_centered.items():
@@ -797,6 +797,8 @@ def train_a_vae(model, train_dataset, device, epochs, batch_size, lr):
         print("Epoch", epoch + 1, "complete !", "\tAverage training loss: ", overall_loss / (batch_idx*batch_size))
         sys.stdout.flush()
 
+    print("\nModel training complete !\n")
+
     return model
 
 
@@ -835,10 +837,10 @@ def eval_cvae(trained_model, test_dataset, mask, device, test_var):
 
             x_hat, _, _ = trained_model(x)
             
-            temp = (x_hat[:, :,  ~mask] - y[:, :, ~mask])**2
+            temp = (x_hat[:, :, ~mask] - y[:, :, ~mask])**2
             loss = torch.mean(temp).item()
 
-            temp /= test_var[:, :, ~mask]
+            temp /= test_var[:, ~mask]
             loss_with_std = torch.mean(temp).item()
 
     return loss, loss_with_std

@@ -160,8 +160,6 @@ class CVAE(nn.Module):
             encoded_dummy = self.encoder(dummy)
             flattened_dim = encoded_dummy.numel()
             encoded_shape = encoded_dummy.shape[1:]
-            print('encoded shape :', encoded_shape)
-            print('flattened encoded :', flattened_dim)
         
         self.mean_layer = nn.Linear(flattened_dim, latent_dim)
         self.logvar_layer = nn.Linear(flattened_dim, 1)
@@ -181,7 +179,6 @@ class CVAE(nn.Module):
         with torch.no_grad():
             decoded_dummy = self.decoder(encoded_dummy)
             decoded_shape = decoded_dummy.shape[1:]
-            print('decoded shape :', decoded_shape)
 
 
     def encode(self, x):
