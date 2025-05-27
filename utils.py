@@ -618,6 +618,7 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
         loss_with_std = sum(runs_loss_with_std) / len(runs_loss_with_std)
 
         print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
+        sys.stdout.flush()
         
         test_mse_losses[eval_model] = loss
         test_nmse_losses[eval_model] = loss_with_std
@@ -628,6 +629,7 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
     mean_test_loss_with_std = sum(test_nmse_losses.values()) / len(test_nmse_losses)
     
     print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}\n")
+    sys.stdout.flush()
 
     return test_mse_losses, test_nmse_losses
 
@@ -684,6 +686,7 @@ def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
         loss, loss_with_std = eval_vae(trained_machine_model, test_dataset, device, test_var)
         
         print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
+        sys.stdout.flush()
         
         test_mse_losses[eval_model] = loss
         test_nmse_losses[eval_model] = loss_with_std
@@ -695,6 +698,7 @@ def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
 
     
     print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}\n")
+    sys.stdout.flush()
 
     return test_mse_losses, test_nmse_losses
 
@@ -751,8 +755,8 @@ def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
         trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr, verbose)
         loss, loss_with_std = eval_cvae(trained_machine_model, test_dataset, mask, device, test_var)
         
-        
         print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
+        sys.stdout.flush()
         
         test_mse_losses[eval_model] = loss
         test_nmse_losses[eval_model] = loss_with_std
@@ -762,8 +766,8 @@ def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
     mean_test_loss = sum(test_mse_losses.values()) / len(test_mse_losses)
     mean_test_loss_with_std = sum(test_nmse_losses.values()) / len(test_nmse_losses)
 
-    
     print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}\n")
+    sys.stdout.flush()
 
     return test_mse_losses, test_nmse_losses
 
