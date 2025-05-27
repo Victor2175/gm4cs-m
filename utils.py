@@ -617,8 +617,7 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
         loss = sum(runs_loss) / len(runs_loss)
         loss_with_std = sum(runs_loss_with_std) / len(runs_loss_with_std)
 
-        if verbose:
-            print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
+        print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
         
         test_mse_losses[eval_model] = loss
         test_nmse_losses[eval_model] = loss_with_std
@@ -627,9 +626,8 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
 
     mean_test_loss = sum(test_mse_losses.values()) / len(test_mse_losses)
     mean_test_loss_with_std = sum(test_nmse_losses.values()) / len(test_nmse_losses)
-
-    if verbose:
-        print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}")
+    
+    print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}\n")
 
     return test_mse_losses, test_nmse_losses
 
@@ -682,11 +680,10 @@ def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
         train_dataset = CopeDataset(samples=X_train, labels=y_train)
         test_dataset = CopeDataset(samples=X_test, labels=y_test)
 
-        trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr)
+        trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr, verbose)
         loss, loss_with_std = eval_vae(trained_machine_model, test_dataset, device, test_var)
         
-        if verbose:
-            print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
+        print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
         
         test_mse_losses[eval_model] = loss
         test_nmse_losses[eval_model] = loss_with_std
@@ -696,8 +693,8 @@ def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
     mean_test_loss = sum(test_mse_losses.values()) / len(test_mse_losses)
     mean_test_loss_with_std = sum(test_nmse_losses.values()) / len(test_nmse_losses)
 
-    if verbose:
-        print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}")
+    
+    print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}\n")
 
     return test_mse_losses, test_nmse_losses
 
@@ -751,11 +748,11 @@ def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
         train_dataset = CopeDataset(samples=X_train, labels=y_train)
         test_dataset = CopeDataset(samples=X_test, labels=y_test)
 
-        trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr)
+        trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr, verbose)
         loss, loss_with_std = eval_cvae(trained_machine_model, test_dataset, mask, device, test_var)
         
-        if verbose:
-            print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
+        
+        print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
         
         test_mse_losses[eval_model] = loss
         test_nmse_losses[eval_model] = loss_with_std
@@ -765,13 +762,13 @@ def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
     mean_test_loss = sum(test_mse_losses.values()) / len(test_mse_losses)
     mean_test_loss_with_std = sum(test_nmse_losses.values()) / len(test_nmse_losses)
 
-    if verbose:
-        print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}")
+    
+    print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}\n")
 
     return test_mse_losses, test_nmse_losses
 
 
-def train_a_vae(model, train_dataset, device, epochs, batch_size, lr):
+def train_a_vae(model, train_dataset, device, epochs, batch_size, lr, verbose=False):
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -794,10 +791,13 @@ def train_a_vae(model, train_dataset, device, epochs, batch_size, lr):
             loss.backward()
             optimizer.step()
         
-        print("Epoch", epoch + 1, "complete !", "\tAverage training loss: ", overall_loss / (batch_idx*batch_size))
-        sys.stdout.flush()
+        if verbose:
+            print("Epoch", epoch + 1, "complete !", "\tAverage training loss: ", overall_loss / (batch_idx*batch_size))
+            sys.stdout.flush()
 
-    print("\nModel training complete !\n")
+    if verbose:
+        print("\nModel training complete !\n")
+        sys.stdout.flush()
 
     return model
 
