@@ -683,7 +683,7 @@ def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
         test_dataset = CopeDataset(samples=X_test, labels=y_test)
 
         trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr, verbose)
-        loss, loss_with_std = eval_vae(trained_machine_model, test_dataset, device, test_var)
+        loss, loss_with_std = eval_vae(trained_machine_model, test_dataset, device, batch_size, test_var)
         
         print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
         sys.stdout.flush()
@@ -753,7 +753,7 @@ def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
         test_dataset = CopeDataset(samples=X_test, labels=y_test)
 
         trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr, verbose)
-        loss, loss_with_std = eval_cvae(trained_machine_model, test_dataset, mask, device, test_var)
+        loss, loss_with_std = eval_cvae(trained_machine_model, test_dataset, mask, device, batch_size, test_var)
         
         print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
         sys.stdout.flush()
@@ -806,10 +806,13 @@ def train_a_vae(model, train_dataset, device, epochs, batch_size, lr, verbose=Fa
     return model
 
 
-def eval_vae(trained_model, test_dataset, device, test_var):
-    test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=True)
+def eval_vae(trained_model, test_dataset, device, batch_size, test_var):
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
     trained_model.eval()
+
+    batch_losses = []
+    batch_losses_with_std = []
 
     with torch.no_grad():
         for batch_idx, (x, y) in enumerate(test_dataloader):
@@ -821,18 +824,26 @@ def eval_vae(trained_model, test_dataset, device, test_var):
             temp = (x_hat - y)**2
             losses = temp.mean(dim=1)
             loss = torch.mean(losses).item()
+            batch_losses.append(loss)
 
             temp /= test_var
             losses_with_std = temp.mean(dim=1)
             loss_with_std = torch.mean(losses_with_std).item()
+            batch_losses_with_std.append(loss_with_std)
+
+    loss = sum(batch_losses) / len(batch_losses)
+    loss_with_std = sum(batch_losses_with_std) / len(batch_losses_with_std)
 
     return loss, loss_with_std
 
 
-def eval_cvae(trained_model, test_dataset, mask, device, test_var):
-    test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=True)
+def eval_cvae(trained_model, test_dataset, mask, device, batch_size, test_var):
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
     trained_model.eval()
+
+    batch_losses = []
+    batch_losses_with_std = []
 
     with torch.no_grad():
         for batch_idx, (x, y) in enumerate(test_dataloader):
@@ -843,8 +854,13 @@ def eval_cvae(trained_model, test_dataset, mask, device, test_var):
             
             temp = (x_hat[:, :, ~mask] - y[:, :, ~mask])**2
             loss = torch.mean(temp).item()
+            batch_losses.append(loss)
 
             temp /= test_var[:, ~mask]
             loss_with_std = torch.mean(temp).item()
+            batch_losses_with_std.append(loss_with_std)
+
+    loss = sum(batch_losses) / len(batch_losses)
+    loss_with_std = sum(batch_losses_with_std) / len(batch_losses_with_std)
 
     return loss, loss_with_std
