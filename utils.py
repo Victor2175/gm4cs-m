@@ -455,9 +455,9 @@ def from_flat_to_grid(flat, mask):
     return grid
 
 
-def from_flat_to_grid_timeserie(flat, mask):
+def from_flat_to_timegrid(flat, mask):
     """
-    Converts the flattened grid timeserie back to its original state.
+    Converts the flattened timegrid back to its original state.
     
     Keyword arguments:
     flat (np.array): The flattened grid timeserie. Shape of (timestep*cells, )
@@ -512,9 +512,9 @@ def extract_per_grid(cope_data, mask, r=[-10, 10], eval_model=None):
     eval_model (string, optional): The testing model. If None, the first model in cope_data will be used.
 
     Outputs:
-    X_train (np.array): The training grids. Shape of (samples, 34*cells)
+    X_train (np.array): The training grids. Shape of (samples, cells)
     y_train (np.array): The mean forced responses for the training grids. Shape of (samples, cells)
-    X_test (np.array): The testing grids. Shape of (samples, 34*cells)
+    X_test (np.array): The testing grids. Shape of (samples, cells)
     y_test (np.array): The mean forced responses for the testing grids. Shape of (samples, cells)
     """
     X_train, y_train = [], []
@@ -533,7 +533,7 @@ def extract_per_grid(cope_data, mask, r=[-10, 10], eval_model=None):
                     X_train.append(grid)
                     y_train.append(mean_forced_response)
 
-    normalized_grids, mean_forced_responses, _, _ = center_flatten_model(cope_data, eval_model, mask)
+    normalized_grids, mean_forced_responses = center_flatten_model(cope_data, mask, eval_model)
     for run, grid_timeserie in normalized_grids.items():
         for grid, mean_forced_response in zip(grid_timeserie, mean_forced_responses):
             if (r[0] < grid.min() and grid.max() < r[1]):
@@ -595,7 +595,7 @@ def extract_per_timeserie(cope_data, mask, r=[-10, 10], eval_model=None):
     return X_train, y_train, X_test, y_test
 
 
-def extract_images(cope_data, mask, r=[-10, 10], eval_model=None):
+def extract_per_images(cope_data, mask, r=[-10, 10], eval_model=None):
     """
     Extracts the data and their associated mean forced responses into images by filling the nan values with the mean of the grid.
     
@@ -618,9 +618,9 @@ def extract_images(cope_data, mask, r=[-10, 10], eval_model=None):
         eval_model = list(cope_data.keys())[0]  # Default to the first model if none is provided
 
     train_models = [model for model in cope_data.keys() if model != eval_model]
-
+    
     for model in train_models:
-        normalized_grids, mean_forced_responses = normalize_model(cope_data, model)
+        normalized_grids, mean_forced_responses, _, _ = normalize_model(cope_data, model)
         filled_mean_forced_responses = fill_grid_timeserie(mean_forced_responses, mask, method='mean')
         for run, grid_timeserie in normalized_grids.items():
             if (r[0] < np.nanmin(grid_timeserie) and np.nanmax(grid_timeserie) < r[1]):
@@ -628,10 +628,10 @@ def extract_images(cope_data, mask, r=[-10, 10], eval_model=None):
 
                 X_train.append(filled_grid_timeserie)
                 y_train.append(filled_mean_forced_responses)
-
+    
     runs_with_timegrids_centered, mean_forced_response = center_model(cope_data, eval_model)
     filled_mean_forced_response = fill_grid_timeserie(mean_forced_response, mask)
-
+    
     X_test, y_test = [], []
     for run, timegrid in runs_with_timegrids_centered.items():
         if (r[0] < np.nanmin(timegrid) and np.nanmax(timegrid) < r[1]):
@@ -1096,7 +1096,7 @@ def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
     for eval_model in models:
         machine_model = CVAE(mask=mask, in_channels=in_channels, hidden_dims=hidden_dims, latent_dim=latent_dim).to(device)
         
-        X_train, y_train, _, _ = extract_images(dataset, mask, eval_model=eval_model)
+        X_train, y_train, _, _ = extract_per_images(dataset, mask, eval_model=eval_model)
         X_train, y_train = torch.tensor(X_train).to(torch.float32), torch.tensor(y_train).to(torch.float32)
 
         runs_with_timegrids_centered, mean_forced_response = center_model(dataset, eval_model)
