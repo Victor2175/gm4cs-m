@@ -2,10 +2,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as ani
 import seaborn as sns
-from utils import normalize_pixel, from_flat_to_grid
+from utils import normalize_pixel, normalize_pixel_other, from_flat_to_grid
 
 
 def plot_histogram_runs(dataset):
+    """
+    Plots a histogram of the number of runs per model in the dataset.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    """
     runs_per_model = [len(dataset[mod]) for mod in dataset.keys()]
     total_number_of_runs = sum(runs_per_model)
 
@@ -15,7 +21,7 @@ def plot_histogram_runs(dataset):
     plt.xticks(rotation=90)
     plt.show()
 
-"""
+
 def plot_timeseries(dataset, model, pixel):
     normalized_timeseries, mean_forced_response = normalize_pixel(dataset, model, pixel)
 
@@ -26,10 +32,10 @@ def plot_timeseries(dataset, model, pixel):
     plt.title(f'Timeseries of model {model} for pixel {pixel}')
     plt.ylabel('SST anomalies')
     plt.show()
-"""
 
-def plot_timeseries(dataset, model, pixel):
-    normalized_timeseries, mean_forced_response = normalize_pixel(dataset, model, pixel)
+
+def plot_timeseries_other(dataset, model, pixel):
+    normalized_timeseries, mean_forced_response = normalize_pixel_other(dataset, model, pixel)
 
     for t in normalized_timeseries:
         plt.plot(t, color='blue', linewidth=0.5)
