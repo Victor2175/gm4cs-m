@@ -59,6 +59,17 @@ class basic_VAE(nn.Module):
         return -ELBO
     
 
+    def sample(self, x, n_samples):
+        samples = []
+        mean, logvar = self.encode(x)
+        for i in range(n_samples):
+            z = self.reparameterization(mean, logvar)
+            sample = self.decode(z)
+            samples.append(sample)
+
+        return samples
+    
+
 class VAE(nn.Module):
     def __init__(self, input_dim=44472, hidden_dim=500, latent_dim=100):
         super(VAE, self).__init__()
