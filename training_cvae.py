@@ -31,11 +31,11 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Specify parameters
-    epochs = 50
+    epochs = 40
     lrs = [1.5e-3, 2e-3]
     in_channels = 34
     hidden_dims = [[68, 136]]
-    latent_dims = [100, 200, 300]
+    latent_dims = [100, 300]
     configurations = len(lrs)*len(hidden_dims)*len(latent_dims)
 
     batch_size = 8
