@@ -38,7 +38,7 @@ if __name__ == '__main__':
     latent_dims = [100, 300]
     configurations = len(lrs)*len(hidden_dims)*len(latent_dims)
 
-    batch_size = 4
+    batch_size = 64
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'Using device: {device}')
