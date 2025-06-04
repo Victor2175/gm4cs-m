@@ -937,7 +937,6 @@ def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
         machine_model = VAE(input_dim=44472, hidden_dim=hidden_dim, latent_dim=latent_dim).to(device)
         
         X_train, y_train, _, _ = extract_per_timeserie(dataset, mask, eval_model=eval_model)
-        X_train, y_train = torch.tensor(X_train).to(torch.float32), torch.tensor(y_train).to(torch.float32)
 
         runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(dataset, mask, eval_model)
         flat_mean_forced_response = mean_forced_responses.flatten()
@@ -953,12 +952,11 @@ def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
             y_test.append(flat_mean_forced_response)
 
         X_test, y_test = np.array(X_test), np.array(y_test)
-        X_test, y_test = torch.tensor(X_test).to(torch.float32), torch.tensor(y_test).to(torch.float32)
 
         train_dataset = CopeDataset(samples=X_train, labels=y_train)
-        test_dataset = CopeDataset(samples=X_test, labels=y_test)
-
         trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr, verbose)
+
+        test_dataset = CopeDataset(samples=X_test, labels=y_test)
         loss, loss_with_std = eval_vae(trained_machine_model, test_dataset, device, batch_size, test_var)
         
         print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
@@ -1097,7 +1095,6 @@ def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
         machine_model = CVAE(mask=mask, in_channels=in_channels, hidden_dims=hidden_dims, latent_dim=latent_dim).to(device)
         
         X_train, y_train, _, _ = extract_per_images(dataset, mask, eval_model=eval_model)
-        X_train, y_train = torch.tensor(X_train).to(torch.float32), torch.tensor(y_train).to(torch.float32)
 
         runs_with_timegrids_centered, mean_forced_response = center_model(dataset, eval_model)
         filled_mean_forced_response = fill_grid_timeserie(mean_forced_response, mask)
@@ -1113,12 +1110,11 @@ def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
             y_test.append(filled_mean_forced_response)
 
         X_test, y_test = np.array(X_test), np.array(y_test)
-        X_test, y_test = torch.tensor(X_test).to(torch.float32), torch.tensor(y_test).to(torch.float32)
 
         train_dataset = CopeDataset(samples=X_train, labels=y_train)
-        test_dataset = CopeDataset(samples=X_test, labels=y_test)
-
         trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr, verbose)
+
+        test_dataset = CopeDataset(samples=X_test, labels=y_test)
         loss, loss_with_std = eval_cvae(trained_machine_model, test_dataset, mask, device, batch_size, test_var)
         
         print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")

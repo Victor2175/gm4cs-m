@@ -57,7 +57,7 @@ if __name__ == '__main__':
                 model_configs = {'in_channels': in_channels, 'hidden_dim': hidden_dim, 'latent_dim': latent_dim}
                 training_configs = {'device': device, 'epochs': epochs, 'batch_size': batch_size, 'lr': lr}
 
-                mse_losses, nmse_losses = CVAE_LOOCV(cope_data, union_nan_mask, model_configs, training_configs)
+                mse_losses, nmse_losses = CVAE_LOOCV(cope_data, union_nan_mask, model_configs, training_configs, verbose=True)
                 sys.stdout.flush()
 
                 all_mse_losses[f'cvae_{lr}_{hidden_dim}_{latent_dim}'] = mse_losses
