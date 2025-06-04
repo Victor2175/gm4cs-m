@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class basic_VAE(nn.Module):
-    def __init__(self, input_dim=1531, hidden_dim=500, latent_dim=200):
+    def __init__(self, input_dim=44472, hidden_dim=500, latent_dim=200):
         super(basic_VAE, self).__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
@@ -149,11 +149,9 @@ class CVAE(nn.Module):
         super(CVAE, self).__init__()
         self.mask = mask
 
-        if hidden_dims is None:
-            self.hidden_dims = [in_channels, 68, 136]
-        else:
-            self.hidden_dims = hidden_dims
-            self.hidden_dims.insert(0, in_channels)
+        self.hidden_dims = list(hidden_dims) if hidden_dims is not None else [68, 136]
+        self.hidden_dims.insert(0, in_channels)
+        
         self.latent_dim = latent_dim
 
         modules = []

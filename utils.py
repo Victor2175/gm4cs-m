@@ -1155,9 +1155,7 @@ def train_a_vae(model, train_dataset, device, epochs, batch_size, lr, verbose=Fa
     model (torch.nn.Module): The trained VAE model
     """
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model.train()
     for epoch in range(epochs):
