@@ -9,6 +9,7 @@ import sys
 def normalize_pixel(dataset, model, pixel):
     """
     Normalizes the timeseries of the given model and pixel from the climate dataset and computes its associated mean forced response.
+    The mean is computed across runs and time while the std is computed across the runs. We then use the mean std.
 
     Keyword arguments:
     dataset (dict): The climate dataset
@@ -23,8 +24,9 @@ def normalize_pixel(dataset, model, pixel):
     for run in dataset[model].keys():
         timeserie = dataset[model][run][131:, pixel[0], pixel[1]]
         runs_timeserie.append(timeserie)
-        
+
     runs_timeserie = np.array(runs_timeserie)
+
     mean_timeserie = np.mean(runs_timeserie, axis=0)
     mean = np.mean(mean_timeserie)
 
@@ -32,6 +34,38 @@ def normalize_pixel(dataset, model, pixel):
     std = np.mean(std_timeserie)
 
     runs_timeseries_normalized = (runs_timeserie - mean) / std
+    mean_forced_response = np.mean(runs_timeseries_normalized, axis=0)
+
+    return runs_timeseries_normalized, mean_forced_response
+
+
+def normalize_pixel_other(dataset, model, pixel):
+    """
+    Normalizes the timeseries of the given model and pixel from the climate dataset and computes its associated mean forced response.
+    The mean and std are computed across runs. We then use the mean std.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    model (string): The model 
+    pixel (tuple of ints): The latitude and longitude, respectively
+
+    Output:
+    runs_timeseries_normalized (np.array): The normalized timeseries. Shape of (run, timestep)
+    mean_forced_responses (np.array): The mean forced response of the normalized timeseries. Shape of (timestep,)
+    """
+    runs_timeserie = []
+    for run in dataset[model].keys():
+        timeserie = dataset[model][run][131:, pixel[0], pixel[1]]
+        runs_timeserie.append(timeserie)
+
+    runs_timeserie = np.array(runs_timeserie)
+
+    mean_timeserie = np.mean(runs_timeserie, axis=0)
+
+    std_timeserie = np.std(runs_timeserie, axis=0)
+    std = np.mean(std_timeserie)
+
+    runs_timeseries_normalized = (runs_timeserie - mean_timeserie) / std
     mean_forced_response = np.mean(runs_timeseries_normalized, axis=0)
 
     return runs_timeseries_normalized, mean_forced_response
@@ -107,7 +141,7 @@ def center_model(dataset, model):
 
     return runs_with_timegrids_centered, mean_forced_responses
 
-def center_flatten_model(dataset, model, mask):
+def center_flatten_model(dataset, mask, model):
     """
     Centers the grids from 1980 to 2014 (end) of the given model from the climate dataset,
     computes its associated mean forced responses and flattens the results using the provided mask.
@@ -421,9 +455,9 @@ def from_flat_to_grid(flat, mask):
     return grid
 
 
-def from_flat_to_grid_timeserie(flat, mask):
+def from_flat_to_timegrid(flat, mask):
     """
-    Converts the flattened grid timeserie back to its original state.
+    Converts the flattened timegrid back to its original state.
     
     Keyword arguments:
     flat (np.array): The flattened grid timeserie. Shape of (timestep*cells, )
@@ -467,33 +501,52 @@ def fill_grid_timeserie(grid_timeserie, mask, method='mean', fill_value=None):
     return np.array(filled_grid_timeserie)
 
 
-def extract_per_grid(cope_data, mask, r=[-10, 10]):
+def extract_per_grid(cope_data, mask, r=[-10, 10], eval_model=None):
     """
-    Extracts the data and their associated mean forced responses into grids.
+    Normalizes and extracts the data and their associated mean forced responses into grids.
 
     Keyword arguments:
     cope_data (dict): The climate dataset
     mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
     r (list of floats): The range of values to consider for the grids. Default is [-10, 10]
+    eval_model (string, optional): The testing model. If None, the first model in cope_data will be used.
 
     Outputs:
-    X (np.array): The grids. Shape of (samples, cells)
-    Y (np.array): The mean forced responses. Shape of (samples, cells)
+    X_train (np.array): The training grids. Shape of (samples, cells)
+    y_train (np.array): The mean forced responses for the training grids. Shape of (samples, cells)
+    X_test (np.array): The testing grids. Shape of (samples, cells)
+    y_test (np.array): The mean forced responses for the testing grids. Shape of (samples, cells)
     """
-    X, Y = [], []
-    for model in cope_data.keys():
+    X_train, y_train = [], []
+    X_test, y_test = [], []
+
+    if eval_model is None:
+        eval_model = list(cope_data.keys())[0]  # Default to the first model if none is provided
+
+    train_models = [model for model in cope_data.keys() if model != eval_model]
+
+    for model in train_models:
         normalized_grids, mean_forced_responses, _, _ = normalize_flatten_model(cope_data, model, mask)
         for run, grid_timeserie in normalized_grids.items():
             for grid, mean_forced_response in zip(grid_timeserie, mean_forced_responses):
                 if (r[0] < grid.min() and grid.max() < r[1]):
-                    X.append(grid)
-                    Y.append(mean_forced_response)
+                    X_train.append(grid)
+                    y_train.append(mean_forced_response)
 
-    X, Y = np.array(X), np.array(Y)
-    return X, Y
+    normalized_grids, mean_forced_responses = center_flatten_model(cope_data, mask, eval_model)
+    for run, grid_timeserie in normalized_grids.items():
+        for grid, mean_forced_response in zip(grid_timeserie, mean_forced_responses):
+            if (r[0] < grid.min() and grid.max() < r[1]):
+                X_test.append(grid)
+                y_test.append(mean_forced_response)
+
+    X_train, y_train = np.array(X_train), np.array(y_train)
+    X_test, y_test = np.array(X_test), np.array(y_test)
+
+    return X_train, y_train, X_test, y_test
 
 
-def extract_per_timeserie(cope_data, mask, r=[-10, 10]):
+def extract_per_timeserie(cope_data, mask, r=[-10, 10], eval_model=None):
     """
     Extracts the data and their associated mean forced responses into timeseries.
 
@@ -501,27 +554,48 @@ def extract_per_timeserie(cope_data, mask, r=[-10, 10]):
     cope_data (dict): The climate dataset
     mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
     r (list of floats): The range of values to consider for the grids. Default is [-10, 10]
+    eval_model (string, optional): The testing model. If None, the first model in cope_data will be used.
 
     Outputs:
-    X (np.array): The timeseries. Shape of (samples, 34*cells)
-    Y (np.array): The mean forced responses. Shape of (samples, 34*cells)
+    X_train (np.array): The training timeseries. Shape of (samples, 34*cells)
+    y_train (np.array): The mean forced responses for the training timeseries. Shape of (samples, 34*cells)
+    X_test (np.array): The testing timeseries. Shape of (samples, 34*cells)
+    y_test (np.array): The mean forced responses for the testing timeseries. Shape of (samples, 34*cells)
     """
-    X, Y = [], []
-    for model in cope_data.keys():
+    X_train, y_train = [], []
+    X_test, y_test = [], []
+
+    if eval_model is None:
+        eval_model = list(cope_data.keys())[0]  # Default to the first model if none is provided
+
+    train_models = [model for model in cope_data.keys() if model != eval_model]
+
+    for model in train_models:
         normalized_grids, mean_forced_response, _, _ = normalize_flatten_model(cope_data, model, mask)
         flattened_mean_forced_response = mean_forced_response.flatten()
         for run, grid_timeserie in normalized_grids.items():
             flattened_grid_timeserie = grid_timeserie.flatten()
-            
             if (r[0] < flattened_grid_timeserie.min() and flattened_grid_timeserie.max() < r[1]):
-                X.append(flattened_grid_timeserie)
-                Y.append(flattened_mean_forced_response)
+                X_train.append(flattened_grid_timeserie)
+                y_train.append(flattened_mean_forced_response)
 
-    X, Y = np.array(X), np.array(Y)
-    return X, Y
+    runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(cope_data, mask, eval_model)
+    flat_mean_forced_response = mean_forced_responses.flatten()
+
+    X_test, y_test = [], []
+    for run, timegrid in runs_with_timegrids_centered.items():
+        flat_timegrid = timegrid.flatten()
+        if (r[0] < flat_timegrid.min() and flat_timegrid.max() < r[1]):
+            X_test.append(flat_timegrid)
+            y_test.append(flat_mean_forced_response)
+
+    X_train, y_train = np.array(X_train), np.array(y_train)
+    X_test, y_test = np.array(X_test), np.array(y_test)
+
+    return X_train, y_train, X_test, y_test
 
 
-def extract_images(cope_data, mask, r=[-10, 10]):
+def extract_per_images(cope_data, mask, r=[-10, 10], eval_model=None):
     """
     Extracts the data and their associated mean forced responses into images by filling the nan values with the mean of the grid.
     
@@ -529,24 +603,47 @@ def extract_images(cope_data, mask, r=[-10, 10]):
     cope_data (dict): The climate dataset
     mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
     r (list of floats): The range of values to consider for the grids. Default is [-10, 10]
+    eval_model (string, optional): The testing model. If None, the first model in cope_data will be used.
 
     Outputs:
-    X (np.array): The images. Shape of (samples, 34, latitude, longitude)
-    Y (np.array): The mean forced responses. Shape of (samples, 34, latitude, longitude)
+    X_train (np.array): The training images. Shape of (samples, 34, latitude, longitude)
+    y_train (np.array): The mean forced responses for the training images. Shape of (samples, 34, latitude, longitude)
+    X_test (np.array): The testing images. Shape of (samples, 34, latitude, longitude)
+    y_test (np.array): The mean forced responses for the testing images. Shape of (samples, 34, latitude, longitude)
     """
-    X, Y = [], []
-    for model in cope_data.keys():
-        normalized_grids, mean_forced_responses = normalize_model(cope_data, model)
+    X_train, y_train = [], []
+    X_test, y_test = [], []
+
+    if eval_model is None:
+        eval_model = list(cope_data.keys())[0]  # Default to the first model if none is provided
+
+    train_models = [model for model in cope_data.keys() if model != eval_model]
+    
+    for model in train_models:
+        normalized_grids, mean_forced_responses, _, _ = normalize_model(cope_data, model)
         filled_mean_forced_responses = fill_grid_timeserie(mean_forced_responses, mask, method='mean')
         for run, grid_timeserie in normalized_grids.items():
             if (r[0] < np.nanmin(grid_timeserie) and np.nanmax(grid_timeserie) < r[1]):
                 filled_grid_timeserie = fill_grid_timeserie(grid_timeserie, mask, method='mean')
 
-                X.append(filled_grid_timeserie)
-                Y.append(filled_mean_forced_responses)
+                X_train.append(filled_grid_timeserie)
+                y_train.append(filled_mean_forced_responses)
+    
+    runs_with_timegrids_centered, mean_forced_response = center_model(cope_data, eval_model)
+    filled_mean_forced_response = fill_grid_timeserie(mean_forced_response, mask)
+    
+    X_test, y_test = [], []
+    for run, timegrid in runs_with_timegrids_centered.items():
+        if (r[0] < np.nanmin(timegrid) and np.nanmax(timegrid) < r[1]):
+            filled_timegrid = fill_grid_timeserie(timegrid, mask, method='mean')
 
-    X, Y = np.array(X), np.array(Y)          
-    return X, Y
+            X_test.append(filled_timegrid)
+            y_test.append(filled_mean_forced_response)
+
+    X_train, y_train = np.array(X_train), np.array(y_train)
+    X_test, y_test = np.array(X_test), np.array(y_test)
+
+    return X_train, y_train, X_test, y_test
 
 
 def get_confidence_interval_grid_timeserie(samples):
@@ -566,7 +663,22 @@ def get_confidence_interval_grid_timeserie(samples):
     return conf_int
 
 
-def LOOCV(dataset, mask, machine_model, verbose=False):
+"""
+def LOOCV(dataset, mask, machine_model):
+    
+    Performs Leave-One-Out Cross-Validation (LOOCV) for the given dataset using the provided ridge regression model.
+    For each model in the dataset, it trains the machine model on all other models and evaluates it on the left-out model.
+    The mean squared error (MSE) and normalized MSE (NMSE) are computed for each evaluation.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+    machine_model (object): The ridge regression model to use for training and evaluation
+
+    Outputs:
+    test_mse_losses (dict): The MSE losses for each evaluation model.
+    test_nmse_losses (dict): The normalized MSE losses for each evaluation model. 
+    
     models = list(dataset.keys())
     n_models = len(models)
     ith_model = 1
@@ -591,7 +703,7 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
 
         machine_model.fit(X_train, y_train)
 
-        runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(dataset, eval_model, mask)
+        runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(dataset, mask, eval_model)
 
         runs_loss = []
         runs_loss_with_std = []
@@ -632,9 +744,99 @@ def LOOCV(dataset, mask, machine_model, verbose=False):
     sys.stdout.flush()
 
     return test_mse_losses, test_nmse_losses
+"""
 
 
+def LOOCV(dataset, mask, machine_model):
+    """
+    Performs Leave-One-Out Cross-Validation (LOOCV) for the given dataset using the provided ridge regression model.
+    For each model in the dataset, it trains the machine model on all other models and evaluates it on the left-out model.
+    The mean squared error (MSE) and normalized MSE (NMSE) are computed for each evaluation.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+    machine_model (object): The ridge regression model to use for training and evaluation
+
+    Outputs:
+    test_mse_losses (dict): The MSE losses for each evaluation model.
+    test_nmse_losses (dict): The normalized MSE losses for each evaluation model. 
+    """
+    models = list(dataset.keys())
+    n_models = len(models)
+    ith_model = 1
+
+    test_mse_losses = {}
+    test_nmse_losses = {}
+
+    for eval_model in models:
+        X_train, y_train, _, _ = extract_per_grid(dataset, mask, eval_model=eval_model)
+        X_train, y_train = torch.tensor(X_train), torch.tensor(y_train)
+
+        machine_model.fit(X_train, y_train)
+
+        runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(dataset, mask, eval_model)
+
+        runs_loss = []
+        runs_loss_with_std = []
+
+        for run, timegrid in runs_with_timegrids_centered.items():
+            X_test, y_test = [], []
+            for grid, mean_forced_response in zip(timegrid, mean_forced_responses):
+                X_test.append(grid)
+                y_test.append(mean_forced_response)
+
+            X_test, y_test = np.array(X_test), np.array(y_test)
+            X_test, y_test = torch.tensor(X_test), torch.tensor(y_test)
+
+            y_hat = machine_model.predict(X_test)
+            temp = (y_hat - y_test)**2
+            run_loss = torch.mean(temp).item()
+            runs_loss.append(run_loss)
+
+            var = torch.var(y_test, axis=0)
+            temp /= var
+            run_loss_with_std = torch.mean(temp).item()
+            runs_loss_with_std.append(run_loss_with_std)
+            
+        loss = sum(runs_loss) / len(runs_loss)
+        loss_with_std = sum(runs_loss_with_std) / len(runs_loss_with_std)
+
+        print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
+        sys.stdout.flush()
+        
+        test_mse_losses[eval_model] = loss
+        test_nmse_losses[eval_model] = loss_with_std
+
+        ith_model += 1
+
+    mean_test_loss = sum(test_mse_losses.values()) / len(test_mse_losses)
+    mean_test_loss_with_std = sum(test_nmse_losses.values()) / len(test_nmse_losses)
+    
+    print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}\n")
+    sys.stdout.flush()
+
+    return test_mse_losses, test_nmse_losses
+
+
+"""
 def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
+    
+    Performs Leave-One-Out Cross-Validation (LOOCV) for the given dataset using a Variational Autoencoder (VAE).
+    For each model in the dataset, it trains the VAE on all other models and evaluates it on the left-out model.
+    The mean squared error (MSE) and normalized MSE (NMSE) are computed for each evaluation.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+    model_configs (dict): The configurations for the VAE model, including hidden and latent dimensions
+    training_configs (dict): The configurations for training, including device, epochs, batch size, and learning rate
+    verbose (bool, default=False): If True, prints the progress of the training
+
+    Outputs:
+    test_mse_losses (dict): The MSE losses for each evaluation model.
+    test_nmse_losses (dict): The normalized MSE losses for each evaluation model.
+    
     models = list(dataset.keys())
     n_models = len(models)
     ith_model = 1
@@ -663,7 +865,81 @@ def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
         X_train, y_train = np.array(X_train), np.array(y_train)
         X_train, y_train = torch.tensor(X_train).to(torch.float32), torch.tensor(y_train).to(torch.float32)
 
-        runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(dataset, eval_model, mask)
+        runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(dataset, mask, eval_model)
+        flat_mean_forced_response = mean_forced_responses.flatten()
+
+        test_var = torch.var(torch.tensor(mean_forced_responses), dim=0).to(device)
+        test_var = torch.cat([test_var] * 34, dim=0)
+
+        X_test, y_test = [], []
+        for run, timegrid in runs_with_timegrids_centered.items():
+            flat_timegrid = timegrid.flatten()
+
+            X_test.append(flat_timegrid)
+            y_test.append(flat_mean_forced_response)
+
+        X_test, y_test = np.array(X_test), np.array(y_test)
+        X_test, y_test = torch.tensor(X_test).to(torch.float32), torch.tensor(y_test).to(torch.float32)
+
+        train_dataset = CopeDataset(samples=X_train, labels=y_train)
+        test_dataset = CopeDataset(samples=X_test, labels=y_test)
+
+        trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr, verbose)
+        loss, loss_with_std = eval_vae(trained_machine_model, test_dataset, device, batch_size, test_var)
+        
+        print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
+        sys.stdout.flush()
+        
+        test_mse_losses[eval_model] = loss
+        test_nmse_losses[eval_model] = loss_with_std
+
+        ith_model += 1
+
+    mean_test_loss = sum(test_mse_losses.values()) / len(test_mse_losses)
+    mean_test_loss_with_std = sum(test_nmse_losses.values()) / len(test_nmse_losses)
+
+    
+    print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}\n")
+    sys.stdout.flush()
+
+    return test_mse_losses, test_nmse_losses
+"""
+
+
+def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
+    """
+    Performs Leave-One-Out Cross-Validation (LOOCV) for the given dataset using a Variational Autoencoder (VAE).
+    For each model in the dataset, it trains the VAE on all other models and evaluates it on the left-out model.
+    The mean squared error (MSE) and normalized MSE (NMSE) are computed for each evaluation.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+    model_configs (dict): The configurations for the VAE model, including hidden and latent dimensions
+    training_configs (dict): The configurations for training, including device, epochs, batch size, and learning rate
+    verbose (bool, default=False): If True, prints the progress of the training
+
+    Outputs:
+    test_mse_losses (dict): The MSE losses for each evaluation model.
+    test_nmse_losses (dict): The normalized MSE losses for each evaluation model.
+    """
+    models = list(dataset.keys())
+    n_models = len(models)
+    ith_model = 1
+
+    hidden_dim, latent_dim = list(model_configs.values())
+    device, epochs, batch_size, lr = list(training_configs.values())
+
+    test_mse_losses = {}
+    test_nmse_losses = {}
+
+    for eval_model in models:
+        machine_model = VAE(input_dim=44472, hidden_dim=hidden_dim, latent_dim=latent_dim).to(device)
+        
+        X_train, y_train, _, _ = extract_per_timeserie(dataset, mask, eval_model=eval_model)
+        X_train, y_train = torch.tensor(X_train).to(torch.float32), torch.tensor(y_train).to(torch.float32)
+
+        runs_with_timegrids_centered, mean_forced_responses = center_flatten_model(dataset, mask, eval_model)
         flat_mean_forced_response = mean_forced_responses.flatten()
 
         test_var = torch.var(torch.tensor(mean_forced_responses), dim=0).to(device)
@@ -703,7 +979,24 @@ def VAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
     return test_mse_losses, test_nmse_losses
 
 
+"""
 def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
+    
+    Performs Leave-One-Out Cross-Validation (LOOCV) for the given dataset using a Convolutional Variational Autoencoder (CVAE).
+    For each model in the dataset, it trains the CVAE on all other models and evaluates it on the left-out model.
+    The mean squared error (MSE) and normalized MSE (NMSE) are computed for each evaluation.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+    model_configs (dict): The configurations for the CVAE model, including input channels, hidden dimensions, and latent dimension
+    training_configs (dict): The configurations for training, including device, epochs, batch size, and learning rate
+    verbose (bool, default=False): If True, prints the progress of the training
+
+    Outputs:
+    test_mse_losses (dict): The MSE losses for each evaluation model.
+    test_nmse_losses (dict): The normalized MSE losses for each evaluation model.
+    
     models = list(dataset.keys())
     n_models = len(models)
     ith_model = 1
@@ -770,13 +1063,99 @@ def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
     sys.stdout.flush()
 
     return test_mse_losses, test_nmse_losses
+"""
+
+
+def CVAE_LOOCV(dataset, mask, model_configs, training_configs, verbose=False):
+    """
+    Performs Leave-One-Out Cross-Validation (LOOCV) for the given dataset using a Convolutional Variational Autoencoder (CVAE).
+    For each model in the dataset, it trains the CVAE on all other models and evaluates it on the left-out model.
+    The mean squared error (MSE) and normalized MSE (NMSE) are computed for each evaluation.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    mask (np.array): A boolean mask that indicate cells that should be ignored (such as nans). Shape of (latitude, longitude)
+    model_configs (dict): The configurations for the CVAE model, including input channels, hidden dimensions, and latent dimension
+    training_configs (dict): The configurations for training, including device, epochs, batch size, and learning rate
+    verbose (bool, default=False): If True, prints the progress of the training
+
+    Outputs:
+    test_mse_losses (dict): The MSE losses for each evaluation model.
+    test_nmse_losses (dict): The normalized MSE losses for each evaluation model.
+    """
+    models = list(dataset.keys())
+    n_models = len(models)
+    ith_model = 1
+
+    in_channels, hidden_dims, latent_dim = list(model_configs.values())
+    device, epochs, batch_size, lr = list(training_configs.values())
+
+    test_mse_losses = {}
+    test_nmse_losses = {}
+
+    for eval_model in models:
+        machine_model = CVAE(mask=mask, in_channels=in_channels, hidden_dims=hidden_dims, latent_dim=latent_dim).to(device)
+        
+        X_train, y_train, _, _ = extract_per_images(dataset, mask, eval_model=eval_model)
+        X_train, y_train = torch.tensor(X_train).to(torch.float32), torch.tensor(y_train).to(torch.float32)
+
+        runs_with_timegrids_centered, mean_forced_response = center_model(dataset, eval_model)
+        filled_mean_forced_response = fill_grid_timeserie(mean_forced_response, mask)
+
+        test_var = torch.var(torch.tensor(filled_mean_forced_response), dim=0).to(device)
+        test_var = torch.stack([test_var] * 34)
+
+        X_test, y_test = [], []
+        for run, timegrid in runs_with_timegrids_centered.items():
+            filled_timegrid = fill_grid_timeserie(timegrid, mask)
+
+            X_test.append(filled_timegrid)
+            y_test.append(filled_mean_forced_response)
+
+        X_test, y_test = np.array(X_test), np.array(y_test)
+        X_test, y_test = torch.tensor(X_test).to(torch.float32), torch.tensor(y_test).to(torch.float32)
+
+        train_dataset = CopeDataset(samples=X_train, labels=y_train)
+        test_dataset = CopeDataset(samples=X_test, labels=y_test)
+
+        trained_machine_model = train_a_vae(machine_model, train_dataset, device, epochs, batch_size, lr, verbose)
+        loss, loss_with_std = eval_cvae(trained_machine_model, test_dataset, mask, device, batch_size, test_var)
+        
+        print(f"[{ith_model}/{n_models}] For eval model {eval_model}, \t MSE is {round(loss, 2)}, \t NMSE is {round(loss_with_std, 2)}")
+        sys.stdout.flush()
+        
+        test_mse_losses[eval_model] = loss
+        test_nmse_losses[eval_model] = loss_with_std
+
+        ith_model += 1
+
+    mean_test_loss = sum(test_mse_losses.values()) / len(test_mse_losses)
+    mean_test_loss_with_std = sum(test_nmse_losses.values()) / len(test_nmse_losses)
+
+    print(f"The mean MSE is {round(mean_test_loss, 2)}, the mean NMSE is {round(mean_test_loss_with_std, 2)}\n")
+    sys.stdout.flush()
+
+    return test_mse_losses, test_nmse_losses
 
 
 def train_a_vae(model, train_dataset, device, epochs, batch_size, lr, verbose=False):
+    """
+    Trains the given VAE model on the provided training dataset.
+    
+    Keyword arguments:
+    model (torch.nn.Module): The VAE model to train
+    train_dataset (torch.utils.data.Dataset): The training dataset
+    device (torch.device): The device to train the model on (CPU or GPU)
+    epochs (int): The number of epochs to train the model
+    batch_size (int): The batch size for training
+    lr (float): The learning rate for the optimizer
+    verbose (bool, default=False): If True, prints the progress of the training
+    
+    Returns:
+    model (torch.nn.Module): The trained VAE model
+    """
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model.train()
     for epoch in range(epochs):
@@ -807,6 +1186,9 @@ def train_a_vae(model, train_dataset, device, epochs, batch_size, lr, verbose=Fa
 
 
 def eval_vae(trained_model, test_dataset, device, batch_size, test_var):
+    """
+    
+    """
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
     trained_model.eval()
