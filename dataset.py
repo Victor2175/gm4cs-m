@@ -3,8 +3,8 @@ from torch.utils.data import Dataset
 
 class CopeDataset(Dataset):
     def __init__(self, samples, labels):
-        self.samples = samples
-        self.labels = labels
+        self.samples = torch.tensor(samples).to(torch.float32)
+        self.labels = torch.tensor(labels).to(torch.float32)
 
     def __len__(self):
         return len(self.samples)
@@ -13,4 +13,4 @@ class CopeDataset(Dataset):
         sample = self.samples[index]
         label = self.labels[index]
 
-        return torch.Tensor(sample), torch.Tensor(label)
+        return sample, label
