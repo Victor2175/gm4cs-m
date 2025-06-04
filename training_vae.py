@@ -32,12 +32,12 @@ if __name__ == '__main__':
 
     # Specify parameters
     epochs = 30
-    lrs = [1e-3, 1.5e-3, 2e-3]
-    hidden_dims = [500, 1000, 1500]
-    latent_dims = [100, 200, 300]
+    lrs = [1e-3, 1.5e-3]
+    hidden_dims = [500, 1000]
+    latent_dims = [100, 300]
     configurations = len(lrs)*len(hidden_dims)*len(latent_dims)
 
-    batch_size = 16
+    batch_size = 64
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'Using device: {device}')
