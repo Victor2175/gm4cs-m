@@ -791,12 +791,14 @@ def LOOCV(dataset, mask, machine_model):
 
             y_hat = machine_model.predict(X_test)
             temp = (y_hat - y_test)**2
-            run_loss = torch.mean(temp).item()
+            #run_loss = torch.mean(temp).item()
+            run_loss = torch.sum(temp).item()
             runs_loss.append(run_loss)
 
             var = torch.var(y_test, axis=0)
             temp /= var
-            run_loss_with_std = torch.mean(temp).item()
+            #run_loss_with_std = torch.mean(temp).item()
+            run_loss_with_std = torch.sum(temp).item()
             runs_loss_with_std.append(run_loss_with_std)
             
         loss = sum(runs_loss) / len(runs_loss)
@@ -1200,13 +1202,13 @@ def eval_vae(trained_model, test_dataset, device, batch_size, test_var):
             x_hat, _, _ = trained_model(x)
             
             temp = (x_hat - y)**2
-            losses = temp.mean(dim=1)
-            loss = torch.mean(losses).item()
+            #loss = torch.mean(temp).item()
+            loss = torch.mean(temp, dim=0).sum().item()
             batch_losses.append(loss)
 
             temp /= test_var
-            losses_with_std = temp.mean(dim=1)
-            loss_with_std = torch.mean(losses_with_std).item()
+            #loss_with_std = torch.mean(temp).item()
+            loss_with_std = torch.mean(temp, dim=0).sum().item()
             batch_losses_with_std.append(loss_with_std)
 
     loss = sum(batch_losses) / len(batch_losses)
@@ -1231,11 +1233,13 @@ def eval_cvae(trained_model, test_dataset, mask, device, batch_size, test_var):
             x_hat, _, _ = trained_model(x)
             
             temp = (x_hat[:, :, ~mask] - y[:, :, ~mask])**2
-            loss = torch.mean(temp).item()
+            #loss = torch.mean(temp).item()
+            loss = torch.mean(temp, dim=0).sum().item()
             batch_losses.append(loss)
 
             temp /= test_var[:, ~mask]
-            loss_with_std = torch.mean(temp).item()
+            #loss_with_std = torch.mean(temp).item()
+            loss_with_std = torch.mean(temp, dim=0).sum().item()
             batch_losses_with_std.append(loss_with_std)
 
     loss = sum(batch_losses) / len(batch_losses)
