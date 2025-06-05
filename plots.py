@@ -23,18 +23,36 @@ def plot_histogram_runs(dataset):
 
 
 def plot_timeseries(dataset, model, pixel):
+    runs_timeserie = []
+    for run in dataset[model].keys():
+        timeserie = dataset[model][run][131:, pixel[0], pixel[1]]
+        runs_timeserie.append(timeserie)
+
+    runs_timeserie = np.array(runs_timeserie)
+    mean_forced_response = np.mean(runs_timeserie, axis=0)
+
+    for t in runs_timeserie:
+        plt.plot(t, color='blue', linewidth=0.5)
+
+    plt.plot(mean_forced_response, color='red')
+    plt.title(f'Normalized timeseries of model {model} for pixel {pixel}')
+    plt.ylabel('SST anomalies')
+    plt.show()
+
+
+def plot_normalized_timeseries(dataset, model, pixel):
     normalized_timeseries, mean_forced_response = normalize_pixel(dataset, model, pixel)
 
     for t in normalized_timeseries:
         plt.plot(t, color='blue', linewidth=0.5)
 
     plt.plot(mean_forced_response, color='red')
-    plt.title(f'Timeseries of model {model} for pixel {pixel}')
+    plt.title(f'Normalized timeseries of model {model} for pixel {pixel}')
     plt.ylabel('SST anomalies')
     plt.show()
 
 
-def plot_timeseries_other(dataset, model, pixel):
+def plot_normalized_timeseries_other(dataset, model, pixel):
     normalized_timeseries, mean_forced_response = normalize_pixel_other(dataset, model, pixel)
 
     for t in normalized_timeseries:
