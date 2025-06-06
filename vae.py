@@ -241,9 +241,8 @@ class CVAE(nn.Module):
         mean, logvar = self.encode(x)
         for i in range(n_samples):
             z = self.reparameterization(mean, logvar)
-            sample = self.decode(z)
+            sample = self.decode(z).squeeze(0)
             samples.append(sample)
 
-        samples = torch.cat(samples, dim=0)
         return samples
         
