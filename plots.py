@@ -23,6 +23,14 @@ def plot_histogram_runs(dataset):
 
 
 def plot_timeseries(dataset, model, pixel):
+    """
+    Plots the timeseries of a specific pixel for a given model from the dataset.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    model (str): The model name
+    pixel (tuple): The pixel coordinates (latitude, longitude) to plot
+    """
     runs_timeserie = []
     for run in dataset[model].keys():
         timeserie = dataset[model][run][131:, pixel[0], pixel[1]]
@@ -41,6 +49,14 @@ def plot_timeseries(dataset, model, pixel):
 
 
 def plot_normalized_timeseries(dataset, model, pixel):
+    """
+    Plots the normalized timeseries of a specific pixel for a given model from the dataset according to the first normalizing strategy.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    model (str): The model name
+    pixel (tuple): The pixel coordinates (latitude, longitude) to plot
+    """
     normalized_timeseries, mean_forced_response = normalize_pixel(dataset, model, pixel)
 
     for t in normalized_timeseries:
@@ -53,6 +69,14 @@ def plot_normalized_timeseries(dataset, model, pixel):
 
 
 def plot_normalized_timeseries_other(dataset, model, pixel):
+    """
+    Plots the normalized timeseries of a specific pixel for a given model from the dataset according to the second normalizing strategy.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    model (str): The model name
+    pixel (tuple): The pixel coordinates (latitude, longitude) to plot
+    """
     normalized_timeseries, mean_forced_response = normalize_pixel_other(dataset, model, pixel)
 
     for t in normalized_timeseries:
@@ -65,6 +89,15 @@ def plot_normalized_timeseries_other(dataset, model, pixel):
 
 
 def plot_heatmap_years(dataset, model, run, years=[2000, 2005, 2010]):
+    """
+    Plots three heatmaps for the specified years from the dataset for a given model and run.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    model (str): The model name
+    run (str): The run identifier
+    years (list): List of years to plot heatmaps for, default is [2000, 2005, 2010]
+    """
     for y in years:
         if y < 1980 or 2013 < y: 
             raise ValueError('The year range provided is not in [1980, 2013]')
@@ -78,6 +111,15 @@ def plot_heatmap_years(dataset, model, run, years=[2000, 2005, 2010]):
 
 
 def plot_heatmap(dataset, model, run, year=2010):
+    """
+    Plots a heatmap for a specific year from the dataset for a given model and run.
+
+    Keyword arguments:
+    dataset (dict): The climate dataset
+    model (str): The model name
+    run (str): The run identifier
+    year (int): The year to plot the heatmap for, default is 2010
+    """
     if year < 1980 or 2013 < year: 
         raise ValueError('The year provided is not in [1980, 2013]')
         
@@ -88,6 +130,14 @@ def plot_heatmap(dataset, model, run, year=2010):
 
 
 def plot_grid(grid, union_nan_mask, flip=True):
+    """
+    Plots a heatmap of the provided grid.
+
+    Keyword arguments:
+    grid (np.ndarray): The grid data to plot. Can be a 1D array or a 2D array
+    union_nan_mask (np.array): A boolean mask that indicates cells to ignore (such as nans). Shape of (latitude, longitude)
+    flip (bool): If True, flips the grid vertically before plotting. Default is True.
+    """
     if len(grid.shape) != 2:
         grid = from_flat_to_grid(grid, union_nan_mask)
     
@@ -101,6 +151,15 @@ def plot_grid(grid, union_nan_mask, flip=True):
 
 
 def plot_duo_grids(x_hat, y, union_nan_mask, flip=True):
+    """
+    Plots two heatmaps side by side: one for the predicted forced response and one for the actual forced response.
+
+    Keyword arguments:
+    x_hat (np.ndarray): The predicted forced response grid. Can be a 1D array or a 2D array
+    y (np.ndarray): The actual forced response grid. Can be a 1D array or a 2D array
+    union_nan_mask (np.array): A boolean mask that indicates cells to ignore (such as nans). Shape of (latitude, longitude)
+    flip (bool): If True, flips the grids vertically before plotting. Default is True.
+    """
     if len(x_hat.shape) != 2:
         x_hat = from_flat_to_grid(x_hat, union_nan_mask)
 
@@ -126,6 +185,16 @@ def plot_duo_grids(x_hat, y, union_nan_mask, flip=True):
 
 
 def plot_trio_grids(x, x_hat, y, union_nan_mask, flip=True):
+    """
+    Plots three heatmaps side by side: one for the original datapoint, one for the predicted forced response, and one for the actual forced response.
+
+    Keyword arguments:
+    x (np.ndarray): The original datapoint grid. Can be a 1D array or a 2D array
+    x_hat (np.ndarray): The predicted forced response grid. Can be a 1D array or a 2D array
+    y (np.ndarray): The actual forced response grid. Can be a 1D array or a 2D array
+    union_nan_mask (np.array): A boolean mask that indicates cells to ignore (such as nans). Shape of (latitude, longitude)
+    flip (bool): If True, flips the grids vertically before plotting. Default is True.
+    """
     if len(x.shape) != 2:
         x = from_flat_to_grid(x, union_nan_mask)
 
@@ -158,6 +227,15 @@ def plot_trio_grids(x, x_hat, y, union_nan_mask, flip=True):
 
 
 def get_animated_timeserie(timeserie, union_nan_mask, flip=True, flattened=True):
+    """
+    Creates an animated heatmap of the timeseries data.
+
+    Keyword arguments:
+    timeserie (list or np.ndarray): The timeseries data to animate. Can be a list of flattened grids, a list of 2D arrays or a 3D array.
+    union_nan_mask (np.array): A boolean mask that indicates cells to ignore (such as nans). Shape of (latitude, longitude)
+    flip (bool): If True, flips the grids vertically before plotting. Default is True.
+    flattened (bool): If True, assumes the timeserie is a list/array of flattened grids. If False, assumes it is a list of 2D arrays or a 3D array. Default is True.
+    """
     timeserie = np.array(timeserie)
 
     abs_max = max(abs(np.nanmin(timeserie)), abs(np.nanmax(timeserie)))
@@ -189,6 +267,18 @@ def get_animated_timeserie(timeserie, union_nan_mask, flip=True, flattened=True)
 
 
 def get_duo_animated_timeserie(left_timeserie, right_timeserie, union_nan_mask, left_title='x_hat (predicted)', right_title='y (ground truth)', flip=True, flattened=True):
+    """
+    Creates an animated heatmap of two timeseries data side by side.
+
+    Keyword arguments:
+    left_timeserie (list or np.ndarray): The first timeseries data to animate. Can be a list of flattened grids, a list of 2D arrays or a 3D array.
+    right_timeserie (list or np.ndarray): The second timeseries data to animate. Can be a list of flattened grids, a list of 2D arrays or a 3D array.
+    union_nan_mask (np.array): A boolean mask that indicates cells to ignore (such as nans). Shape of (latitude, longitude)
+    left_title (str): The title for the left heatmap. Default is 'x_hat (predicted)'.
+    right_title (str): The title for the right heatmap. Default is 'y (ground truth)'.
+    flip (bool): If True, flips the grids vertically before plotting. Default is True.
+    flattened (bool): If True, assumes the timeseries are lists/arrays of flattened grids. If False, assumes they are lists of 2D arrays or 3D arrays. Default is True.
+    """
     abs_max = max(abs(np.nanmin(left_timeserie)), abs(np.nanmax(left_timeserie)), abs(np.nanmin(right_timeserie)), abs(np.nanmax(right_timeserie)))
 
     if flattened:

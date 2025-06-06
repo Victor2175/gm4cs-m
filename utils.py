@@ -1185,7 +1185,18 @@ def train_a_vae(model, train_dataset, device, epochs, batch_size, lr, verbose=Fa
 
 def eval_vae(trained_model, test_dataset, device, batch_size, test_var):
     """
-    
+    Evaluates the trained VAE model on the provided test dataset.
+
+    Keyword arguments:
+    trained_model (torch.nn.Module): The trained VAE model
+    test_dataset (torch.utils.data.Dataset): The test dataset
+    device (torch.device): The device to evaluate the model on (CPU or GPU)
+    batch_size (int): The batch size for evaluation
+    test_var (torch.Tensor): The variance of the test dataset, used for computation of NMSE
+
+    Returns:
+    loss (float): The mean squared error (MSE) loss of the model on the test dataset
+    loss_with_std (float): The normalized mean squared error (NMSE) loss of the model on the test dataset
     """
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
@@ -1218,6 +1229,21 @@ def eval_vae(trained_model, test_dataset, device, batch_size, test_var):
 
 
 def eval_cvae(trained_model, test_dataset, mask, device, batch_size, test_var):
+    """
+    Evaluates the trained CVAE model on the provided test dataset.
+
+    Keyword arguments:
+    trained_model (torch.nn.Module): The trained CVAE model
+    test_dataset (torch.utils.data.Dataset): The test dataset
+    mask (np.array): A boolean mask that indicates cells to ignore (such as nans). Shape of (latitude, longitude)
+    device (torch.device): The device to evaluate the model on (CPU or GPU)
+    batch_size (int): The batch size for evaluation
+    test_var (torch.Tensor): The variance of the test dataset, used for computation of NMSE
+
+    Returns:
+    loss (float): The mean squared error (MSE) loss of the model on the test dataset
+    loss_with_std (float): The normalized mean squared error (NMSE) loss of the model on the test dataset
+    """
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
     trained_model.eval()
